@@ -1,4 +1,4 @@
--- see more info about happy: https://sites.google.com/site/paclearner/happy_jp
+-- see more info about happy from https://sites.google.com/site/paclearner/happy_jp
 
 {
 module Parser where
@@ -54,16 +54,15 @@ import Absyn as A
     '|'                                     { TkOr $$ }
     ':='                                    { TkAssign $$ }
     
-    string                                  { TkString $$ }
-    int                                     { TkInt $$ }
     id                                      { TkId $$ }
+    int                                     { TkInt $$ }
+    string                                  { TkString $$ }
 
 %left '+' '-'
 %left '*' '/'
 %left UMINUS
 %left '|' '&'
 %nonassoc '<' '<=' '>' '>='
-%nonassoc ':='
 
 %%
 

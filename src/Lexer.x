@@ -1,4 +1,4 @@
--- see more info about alex: https://www.haskell.org/alex/doc/html/index.html
+-- see more info about alex from https://www.haskell.org/alex/doc/html/index.html
 
 {
     module Lexer where
@@ -10,10 +10,10 @@ $digit = 0-9
 $alpha = [a-zA-Z]
 $graphic = $printable # $white 
 -- $graphic matches all the characters in $printable that are not in $white.
--- z$printable corresponds to Unicode code points 32 to 0x10ffff.
+-- $printable corresponds to Unicode code points 32 to 0x10ffff.
 
 @id = $alpha [$alpha $digit \_ \']*
-@string     = \" ($graphic # \")* \"
+@string = \" ($graphic # \")* \"
 
 tokens :-
 
@@ -62,9 +62,9 @@ tokens :-
     \|                                      { \pos _ -> TkOr pos }
     \:=                                     { \pos _ -> TkAssign pos }
 
-    @string                                 { \pos s -> TkString (s, pos) }
     @id		                                { \pos s -> TkId (s, pos) }
     $digit+                                 { \pos s -> TkInt ((read s), pos) }
+    @string                                 { \pos s -> TkString (s, pos) }
 
 {
     data Token
