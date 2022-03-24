@@ -2,7 +2,7 @@ module Types where
 
 import qualified Symbol
 
-type Unique = Int -- haskell doesn't support 'ref'
+type Unique = String -- haskell doesn't support 'ref', so use type names as unique values
 
 data Ty
         = INT
