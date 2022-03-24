@@ -31,6 +31,7 @@ dependencies:
 - containers
 - hspec          # [Optional] for running 'stack test'. 
 - haskeline      # [Optional] for REPL.
+- transformers   # [Optional] for REPL.
 
 library:
   source-dirs: src

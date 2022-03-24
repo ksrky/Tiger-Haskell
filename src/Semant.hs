@@ -10,7 +10,7 @@ type VEnv = S.Table E.EnvEntry
 
 type TEnv = S.Table T.Ty
 
-data ExpTy = ExpTy {exp :: Translate.Exp, ty :: T.Ty}
+data ExpTy = ExpTy {exp :: Translate.Exp, ty :: T.Ty} deriving (Show)
 
 actualTy :: T.Ty -> Maybe T.Ty
 actualTy ty = case ty of
