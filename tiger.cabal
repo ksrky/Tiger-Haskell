@@ -30,8 +30,10 @@ library
       Absyn
       Env
       Lexer
+      Lexer.REPL
       Lexer.Test
       Parser
+      Parser.REPL
       Parser.Test
       Semant
       Semant.Test

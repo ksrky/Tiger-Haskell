@@ -17,7 +17,7 @@ data Exp
         | CallExp {funcExp :: Symbol, argsExp :: [Exp], posExp :: Pos}
         | OpExp {leftExp :: Exp, operExp :: Oper, rightExp :: Exp, posExp :: Pos}
         | RecordExp {fieldsExp :: [(Symbol, Exp, Pos)], typExp :: Symbol, posExp :: Pos}
-        | SeqExp [(Exp, Pos)]
+        | SeqExp ([Exp], Pos)
         | AssignExp {varExp :: Var, expExp :: Exp, posExp :: Pos}
         | IfExp {testExp :: Exp, thenExp :: Exp, elseExp :: Maybe Exp, posExp :: Pos}
         | WhileExp {testExp :: Exp, bodyExp :: Exp, posExp :: Pos}

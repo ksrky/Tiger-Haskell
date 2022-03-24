@@ -3,10 +3,15 @@
 ## Interactive test
 ```
 $ stack ghci
-ghci> Lexer.Test.main
+ghci> Lexer.REPL.main
 tiger-lexer>
-ghci> Parser.Test.main
+ghci> Parser.REPL.main
 tiger-parser>
-ghci> Semant.Test.main
-tiger-semant> testcases/test1.tig
 ```
+
+## File test
+```
+ghci> Semant.Test.main
+tiger-semant> [file_name]
+```
+where *[file_name]* is a name of a file in *./testcases*

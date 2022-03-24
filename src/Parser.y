@@ -17,7 +17,7 @@ import Absyn as A
     TO                                      { TkTo _ }
     BREAK                                   { TkBreak $$ }
     LET                                     { TkLet $$ }
-    IN                                      { TkIn _ }
+    IN                                      { TkIn $$ }
     END                                     { TkEnd _ }
     FUNCTION                                { TkFunction $$ }
     VAR                                     { TkVar $$ }
@@ -109,7 +109,7 @@ lvalue :: { Var }
 exp :: { Exp }
     : lvalue                        { A.VarExp $1 }
     | NIL                           { A.NilExp }
-    | '(' exp ';' exp seqexp_ ')'   { A.SeqExp (concatSeqexp $2 $1 (concatSeqexp $4 $3 $5)) }
+    | '(' exp ';' exp seqexp_ ')'   { A.SeqExp (concatSeqexp $2 (concatSeqexp $4 $5), pos $1) }
     | int                           { A.IntExp (fst $1) }
     | string                        { A.StringExp (fst $1, pos (snd $1)) }
     | '-' exp %prec UMINUS          { A.OpExp (A.IntExp 0) A.MinusOp $2 (pos $1) }
@@ -134,39 +134,49 @@ exp :: { Exp }
     | WHILE exp DO exp              { A.WhileExp $2 $4 (pos $1) }
     | FOR id ':=' exp TO exp DO exp { A.ForExp (fst $2) True $4 $6 $8 (pos $1) }
     | BREAK                         { A.BreakExp (pos $1) }
-    | LET decs IN seqexp END        { A.LetExp $2 (A.SeqExp $4) (pos $1) }
+    | LET decs IN seqexp END        { A.LetExp $2 (A.SeqExp ($4, pos $3)) (pos $1) }
 
-typeid : id    { $1 }
+typeid :: { (Symbol, AlexPosn) }
+    : id    { $1 }
 
-seqexp : '(' exp seqexp_ ')'    { concatSeqexp $2 $1 $3 }
+seqexp :: { [Exp] }
+    : exp seqexp_               { concatSeqexp $1 $2 }
     | {- empty -}               { [] }
     
-seqexp_ : ';' exp seqexp_       { concatSeqexp $2 $1 $3 }
+seqexp_ :: { [Exp] }
+    : ';' exp seqexp_           { concatSeqexp $2 $3 }
     | {- empty -}               { [] }
 
-args : exp args_                { $1 : $2 }
+args :: { [Exp] }
+    : exp args_                 { $1 : $2 }
     | {- empty -}               { [] }
 
-args_ : ',' exp args_           { $2 : $3 }
+args_ :: { [Exp] }
+    : ',' exp args_             { $2 : $3 }
     | {- empty -}               { [] }
 
-rcd : id '=' exp rcd_           { concatRcd $1 $3 $4 }
+rcd :: { [(Symbol, Exp, Pos)] }
+    : id '=' exp rcd_           { concatRcd $1 $3 $4 }
     | {- empty -}               { [] }
 
-rcd_ : ',' id '=' exp rcd_      { concatRcd $2 $4 $5 }
+rcd_ :: { [(Symbol, Exp, Pos)] }
+    : ',' id '=' exp rcd_       { concatRcd $2 $4 $5 }
     | {- empty -}               { [] }
 
 
 {
 parseError :: [Token] -> a
-parseError _ = error "Parse error"
+parseError [] = error "Parse error at EOF"
+parseError (t:_) = error $ "Parse error of " ++ showToken t
 
 pos :: AlexPosn -> (Int, Int)
 pos (AlexPn _ l c) = (l, c)
 
-concatSeqexp e p [] = [(e, pos p)]
-concatSeqexp e p es = (e, pos p):es
+concatSeqexp :: Exp ->  [Exp] -> [Exp]
+concatSeqexp e [] = [e]
+concatSeqexp e es = e:es
 
+concatRcd :: (Symbol, AlexPosn) -> Exp -> [(Symbol, Exp, Pos)] -> [(Symbol, Exp, Pos)]
 concatRcd i e [] = [(fst i, e, pos (snd i))]
 concatRcd i e r = (fst i, e, pos (snd i)):r
 }

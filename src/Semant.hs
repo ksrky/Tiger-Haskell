@@ -79,9 +79,14 @@ transExp (venv, tenv, exp) = trexp exp
                                 | and (checkRecord <$> fields <*> fs_ty) -> ExpTy () (T.RECORD fs_ty u)
                                 | otherwise -> undefined
                         _ -> error $ show pos ++ "record type required"
-        trexp (A.SeqExp seqexp) = case seqexp of
-                [] -> undefined
-                (e, p) : se -> trexp e --tmp
+        trexp (A.SeqExp (seqexp, pos)) = trexps seqexp
+            where
+                trexps :: [A.Exp] -> ExpTy
+                trexps [] = ExpTy () T.UNIT
+                trexps (e : es)
+                        | null es = trexp e
+                        | checkUnit (ty $ trexp e) = trexps es
+                        | otherwise = error $ show pos ++ "unit type required except the last expression"
         trexp (A.AssignExp v exp pos) =
                 if ty (transVar (venv, tenv, v)) @@ ty (trexp exp)
                         then ExpTy () T.UNIT
