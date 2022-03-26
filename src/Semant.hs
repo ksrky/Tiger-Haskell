@@ -63,15 +63,26 @@ transExp (venv, tenv, exp) = trexp exp
                 | otherwise = error $ show pos ++ "integer required"
             where
                 isComp :: A.Oper -> Bool
-                isComp op = op /= A.PlusOp && op /= A.MinusOp && op /= A.TimesOp && op /= A.DevideOp
+                isComp op = op == A.EqOp || op == A.NeqOp || op == A.LtOp || op == A.LeOp || op == A.GtOp || op == A.GeOp
         trexp (A.RecordExp fields typ pos) = case S.look tenv typ of
                 Nothing -> error $ show pos ++ "record type not found: " ++ typ
-                Just ty -> case actualTy ty of
-                        Nothing -> error $ show pos ++ "type not found (in actualTy): " ++ show ty
-                        Just (T.RECORD fs_ty u)
-                                | length fields /= length fs_ty -> error $ show pos ++ "wrong number of field"
-                                | and (checkRecord fs_ty <$> fields) -> ExpTy () (T.RECORD fs_ty u)
-                                | otherwise -> error $ show pos ++ "type not matched in record"
+                Just ty' -> case actualTy ty' of
+                        Nothing -> error $ show pos ++ "type not found (in actualTy): " ++ show ty'
+                        Just (T.RECORD fs_ty u) -> ExpTy () (T.RECORD (transrecord fields fs_ty) u)
+                            where
+                                {- order of records doesn't matter -}
+                                transrecord :: [(A.Symbol, A.Exp, A.Pos)] -> [(S.Symbol, T.Ty)] -> [(S.Symbol, T.Ty)]
+                                transrecord _ [] = fs_ty
+                                transrecord fs ((s, t) : sts) = case lookup3 s fs of
+                                        Just (e, p)
+                                                | ty (trexp e) @@ t -> transrecord fs sts
+                                                | otherwise -> error $ show p ++ "record type not matched"
+                                        Nothing -> error $ show pos ++ "record not found: " ++ s
+                                lookup3 :: (Eq a) => a -> [(a, b, c)] -> Maybe (b, c)
+                                lookup3 _ [] = Nothing
+                                lookup3 key ((x, y, z) : xyzs)
+                                        | key == x = Just (y, z)
+                                        | otherwise = lookup3 key xyzs
                         _ -> error $ show pos ++ "record type required"
         trexp (A.SeqExp (seqexp, pos)) = trexps seqexp
             where
@@ -96,23 +107,21 @@ transExp (venv, tenv, exp) = trexp exp
                                 | otherwise -> error $ show pos ++ "type not matched between then and else"
         trexp (A.WhileExp test body pos)
                 | not $ checkInt test = error $ show pos ++ "test must be integer"
-                | checkUnit body = ExpTy () T.UNIT
-                | otherwise = error $ show pos ++ "body must be unit"
+                | otherwise = trexp body
         trexp (A.ForExp name _ lo hi body pos)
                 | not (checkInt lo) || not (checkInt hi) = error $ show pos ++ "integer required"
-                | checkUnit body = ExpTy () T.UNIT
-                | otherwise = error $ show pos ++ "body must be unit"
-        trexp (A.BreakExp _) = ExpTy () T.UNIT
+                | otherwise = trexp body
+        trexp (A.BreakExp _) = ExpTy () T.UNIT -- todo: BreakExp must be used in WhileExp/ForExp
         trexp (A.LetExp decs body pos) = transExp (venv', tenv', body)
             where
                 (venv', tenv') = transDecs (venv, tenv, decs)
         trexp (A.ArrayExp typ size init pos) = case S.look tenv typ of
-                Nothing -> error $ show pos ++ "array type not found: " ++ typ
+                Nothing -> error $ show pos ++ "type not found: " ++ typ
                 Just t -> case actualTy t of
                         Nothing -> error $ show pos ++ "type not found (in actualTy): " ++ show t
                         Just (T.ARRAY t' u)
                                 | not $ checkInt size -> error $ show pos ++ "array size must be integer"
-                                | ty (trexp init) @@ t' -> ExpTy () t'
+                                | ty (trexp init) @@ t' -> ExpTy () (T.ARRAY t' u)
                                 | otherwise -> error $ show pos ++ "type not matched"
                         _ -> error $ show pos ++ "array type required"
 
@@ -125,11 +134,6 @@ transExp (venv, tenv, exp) = trexp exp
         checkUnit :: A.Exp -> Bool
         checkUnit exp = ty (trexp exp) @@ T.UNIT
 
-        checkRecord :: [(S.Symbol, T.Ty)] -> (A.Symbol, A.Exp, A.Pos) -> Bool -- order of records doesn't matter
-        checkRecord fs_ty (s, e, p) = case lookup s fs_ty of
-                Just t -> ty (trexp e) @@ t
-                Nothing -> error $ show p ++ "record type not matched"
-
         checkFormals :: [A.Exp] -> [T.Ty] -> Bool
         checkFormals args formals = and $ (@@) <$> map (ty . trexp) args <*> formals
 
@@ -139,12 +143,12 @@ transDecs (venv, tenv, dec : decs) = transDecs (venv', tenv', decs)
     where
         (venv', tenv') = transDec (venv, tenv, dec)
 
-transDec :: (VEnv, TEnv, A.Dec) -> (VEnv, TEnv)
+transDec :: (VEnv, TEnv, A.Dec) -> (VEnv, TEnv) --todo: recursive function definition
 transDec (venv, tenv, A.FunctionDec fundecs) = case fundecs of
         [] -> (venv, tenv)
         A.FunDec name params result body pos : fs -> case result of
-                Just (typ, pos) -> case S.look tenv typ of
-                        Nothing -> error $ show pos ++ "type not found: " ++ typ
+                Just (typ, p) -> case S.look tenv typ of
+                        Nothing -> error $ show p ++ "type not found: " ++ typ
                         Just result_ty
                                 | result_ty @@ ty (transExp (venv'', tenv, body)) -> (venv', tenv)
                                 | otherwise -> error $ show pos ++ "result type not matched"
@@ -168,7 +172,7 @@ transDec (venv, tenv, A.FunctionDec fundecs) = case fundecs of
 transDec (venv, tenv, A.VarDec name _ typ init pos) = (S.enter venv name (E.VarEntry ty), tenv)
     where
         ExpTy exp ty = transExp (venv, tenv, init)
-transDec (venv, tenv, A.TypeDec name ty pos) = (venv, S.enter tenv name (transTy (tenv, ty) name))
+transDec (venv, tenv, A.TypeDec name ty pos) = (venv, S.enter tenv name (transTy (tenv, ty) name)) --todo: recursive type definition
 
 transTy :: (TEnv, A.Ty) -> String -> T.Ty
 transTy (tenv, A.NameTy typ pos) uid = case S.look tenv typ of

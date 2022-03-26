@@ -21,7 +21,7 @@ data Exp
         | AssignExp {varExp :: Var, expExp :: Exp, posExp :: Pos}
         | IfExp {testExp :: Exp, thenExp :: Exp, elseExp :: Maybe Exp, posExp :: Pos}
         | WhileExp {testExp :: Exp, bodyExp :: Exp, posExp :: Pos}
-        | ForExp {nameExp :: Symbol, escapeExp :: Bool, loExp :: Exp, hiExp :: Exp, bodyExp :: Exp, posExp :: Pos}
+        | ForExp {nameExp :: Symbol, escapeExp :: Bool, loExp :: Exp, hiExp :: Exp, bodyExp :: Exp, posExp :: Pos} --todo: what is escape?
         | BreakExp Pos
         | LetExp {decsExp :: [Dec], bodyExp :: Exp, posExp :: Pos}
         | ArrayExp {typExp :: Symbol, sizeExp :: Exp, initExp :: Exp, posExp :: Pos}
@@ -29,7 +29,7 @@ data Exp
 
 data Dec
         = FunctionDec [FunDec]
-        | VarDec {nameDec :: Symbol, escapeDec :: Bool, typDec :: Maybe (Symbol, Pos), initDec :: Exp, posDec :: Pos}
+        | VarDec {nameDec :: Symbol, escapeDec :: Bool, typDec :: Maybe (Symbol, Pos), initDec :: Exp, posDec :: Pos} --todo: what is escape?
         | TypeDec {nameDec :: Symbol, tyDec :: Ty, posDec :: Pos}
         deriving (Eq, Show)
 
@@ -52,6 +52,6 @@ data Oper
         | GeOp
         deriving (Eq, Show)
 
-data Field = Field {nameField :: Symbol, escapeField :: Bool, typField :: Symbol, posField :: Pos} deriving (Eq, Show)
+data Field = Field {nameField :: Symbol, escapeField :: Bool, typField :: Symbol, posField :: Pos} deriving (Eq, Show) --todo: what is escape?
 
 data FunDec = FunDec {nameFunDec :: Symbol, params :: [Field], result :: Maybe (Symbol, Pos), bodyFunDec :: Exp, posFunDec :: Pos} deriving (Eq, Show)

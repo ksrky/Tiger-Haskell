@@ -5,7 +5,6 @@ import qualified Data.Map.Strict as M
 type Symbol = String
 
 type Table a = M.Map Symbol a
-type Rab = M.Map Symbol
 
 empty :: Table a
 empty = M.empty
