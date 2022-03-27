@@ -28,7 +28,7 @@ data Exp
         deriving (Eq, Show)
 
 data Dec
-        = FunctionDec [FunDec]
+        = FunDec {nameFunDec :: Symbol, params :: [Field], result :: Maybe (Symbol, Pos), bodyFunDec :: Exp, posFunDec :: Pos}
         | VarDec {nameDec :: Symbol, escapeDec :: Bool, typDec :: Maybe (Symbol, Pos), initDec :: Exp, posDec :: Pos} --todo: what is escape?
         | TypeDec {nameDec :: Symbol, tyDec :: Ty, posDec :: Pos}
         deriving (Eq, Show)
@@ -53,5 +53,3 @@ data Oper
         deriving (Eq, Show)
 
 data Field = Field {nameField :: Symbol, escapeField :: Bool, typField :: Symbol, posField :: Pos} deriving (Eq, Show) --todo: what is escape?
-
-data FunDec = FunDec {nameFunDec :: Symbol, params :: [Field], result :: Maybe (Symbol, Pos), bodyFunDec :: Exp, posFunDec :: Pos} deriving (Eq, Show)

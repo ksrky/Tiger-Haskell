@@ -56,6 +56,9 @@ transExp (venv, tenv, exp) = trexp exp
                                 Nothing -> error $ show pos ++ "type not found: " ++ show result
                                 Just ty -> ExpTy () ty
                         | otherwise -> error $ show pos ++ "argument type not matched"
+            where
+                checkFormals :: [A.Exp] -> [T.Ty] -> Bool
+                checkFormals args formals = and $ (@@) <$> map (ty . trexp) args <*> formals
         trexp (A.OpExp left op right pos)
                 | checkInt left && checkInt right = ExpTy () T.INT
                 | isComp op && checkString left && checkString right = ExpTy () T.INT
@@ -107,9 +110,10 @@ transExp (venv, tenv, exp) = trexp exp
                                 | otherwise -> error $ show pos ++ "type not matched between then and else"
         trexp (A.WhileExp test body pos)
                 | not $ checkInt test = error $ show pos ++ "test must be integer"
-                | otherwise = trexp body
+                | checkUnit body = ExpTy () T.UNIT
+                | otherwise = error "body of while must be unit"
         trexp (A.ForExp name _ lo hi body pos)
-                | not (checkInt lo) || not (checkInt hi) = error $ show pos ++ "integer required"
+                | not (checkInt lo) || not (checkInt hi) = error $ show pos ++ "lo and hi must be integer"
                 | otherwise = trexp body
         trexp (A.BreakExp _) = ExpTy () T.UNIT -- todo: BreakExp must be used in WhileExp/ForExp
         trexp (A.LetExp decs body pos) = transExp (venv', tenv', body)
@@ -134,41 +138,52 @@ transExp (venv, tenv, exp) = trexp exp
         checkUnit :: A.Exp -> Bool
         checkUnit exp = ty (trexp exp) @@ T.UNIT
 
-        checkFormals :: [A.Exp] -> [T.Ty] -> Bool
-        checkFormals args formals = and $ (@@) <$> map (ty . trexp) args <*> formals
-
 transDecs :: (VEnv, TEnv, [A.Dec]) -> (VEnv, TEnv)
 transDecs (venv, tenv, []) = (venv, tenv)
 transDecs (venv, tenv, dec : decs) = transDecs (venv', tenv', decs)
     where
         (venv', tenv') = transDec (venv, tenv, dec)
 
+data FunDec' = FunDec'
+        { nameFunDec' :: S.Symbol
+        , params' :: [(S.Symbol, T.Ty)]
+        , result' :: T.Ty
+        , bodyFunDec' :: A.Exp
+        , posFunDec' :: A.Pos
+        }
+        deriving (Eq, Show)
+
 transDec :: (VEnv, TEnv, A.Dec) -> (VEnv, TEnv) --todo: recursive function definition
-transDec (venv, tenv, A.FunctionDec fundecs) = case fundecs of
-        [] -> (venv, tenv)
-        A.FunDec name params result body pos : fs -> case result of
+{-transDec (venv, tenv, A.FunctionDec fundecs) = (trfundec (register (venv, []) fundecs), tenv)
+    where
+        trfundec :: (VEnv, [FunDec']) -> VEnv
+        trfundec (venv', []) = venv'
+        trfundec (venv', (FunDec' name params result_ty body pos) : fs)
+                | result_ty @@ ty (transExp (venv'', tenv, body)) = trfundec (venv', fs)
+                | otherwise = error $ show pos ++ "result type not matched"
+            where
+                venv'' = foldr enterparam venv' params
+                enterparam :: (S.Symbol, T.Ty) -> VEnv -> VEnv
+                enterparam (name, ty') venv' = S.enter venv' name (E.VarEntry ty')
+        register :: (VEnv, [FunDec']) -> [A.FunDec] -> (VEnv, [FunDec'])
+        register (venv', fundecs') [] = (venv', fundecs')
+        register (venv', fundecs') (A.FunDec name params result body pos : fs) = case result of
                 Just (typ, p) -> case S.look tenv typ of
                         Nothing -> error $ show p ++ "type not found: " ++ typ
-                        Just result_ty
-                                | result_ty @@ ty (transExp (venv'', tenv, body)) -> (venv', tenv)
-                                | otherwise -> error $ show pos ++ "result type not matched"
+                        Just result_ty -> register (venv'', fs') fs
                             where
-                                venv' = S.enter venv name (E.FunEntry (map snd params') result_ty)
-                                venv'' = foldr enterparam venv' params'
-                Nothing
-                        | T.UNIT @@ ty (transExp (venv'', tenv, body)) -> (venv', tenv)
-                        | otherwise -> error $ show pos ++ "result type not matched"
+                                venv'' = S.enter venv' name (E.FunEntry (map snd params') result_ty)
+                                fs' = fundecs' ++ [FunDec' name params' result_ty body pos]
+                Nothing -> register (venv'', fs') fs
                     where
-                        venv' = S.enter venv name (E.FunEntry (map snd params') T.UNIT)
-                        venv'' = foldr enterparam venv' params'
+                        venv'' = S.enter venv' name (E.FunEntry (map snd params') T.UNIT)
+                        fs' = fundecs' ++ [FunDec' name params' T.UNIT body pos]
             where
                 params' = map transparam params
                 transparam :: A.Field -> (S.Symbol, T.Ty)
                 transparam (A.Field name _ typ pos) = case S.look tenv typ of
                         Just t -> (name, t)
-                        Nothing -> error $ show pos ++ "type not found: " ++ typ
-                enterparam :: (S.Symbol, T.Ty) -> VEnv -> VEnv
-                enterparam (name, ty') venv = S.enter venv name (E.VarEntry ty')
+                        Nothing -> error $ show pos ++ "type not found: " ++ typ-}
 transDec (venv, tenv, A.VarDec name _ typ init pos) = (S.enter venv name (E.VarEntry ty), tenv)
     where
         ExpTy exp ty = transExp (venv, tenv, init)
