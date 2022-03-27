@@ -2,7 +2,10 @@ module Types where
 
 import qualified Symbol
 
-type Unique = String -- haskell doesn't support 'ref', so use type names as unique values
+type Unique = Int -- haskell doesn't support 'ref', so use type names as unique values
+
+unique :: String -> Int
+unique str = -1 -- todo: generate unique id
 
 data Ty
         = INT

@@ -13,7 +13,7 @@ $graphic = $printable # $white
 -- $printable corresponds to Unicode code points 32 to 0x10ffff.
 
 @id = $alpha [$alpha $digit \_ \']*
-@string = \" ($graphic # \")* \"
+@string = \" ($printable # \")* \"
 
 tokens :-
 
@@ -65,56 +65,59 @@ tokens :-
 
     @id		                                { \pos s -> TkId (s, pos) }
     $digit+                                 { \pos s -> TkInt ((read s), pos) }
-    @string                                 { \pos s -> TkString (s, pos) }
+    @string                                 { \pos s -> TkString (unquot s, pos) }
 
 {
-    data Token
-        = TkWhile AlexPosn
-        | TkFor AlexPosn
-        | TkTo AlexPosn
-        | TkBreak AlexPosn
-        | TkLet AlexPosn
-        | TkIn AlexPosn
-        | TkEnd AlexPosn
-        | TkFunction AlexPosn
-        | TkVar AlexPosn
-        | TkType AlexPosn
-        | TkArray AlexPosn
-        | TkIf AlexPosn
-        | TkThen AlexPosn
-        | TkElse AlexPosn
-        | TkDo AlexPosn
-        | TkOf AlexPosn
-        | TkNil AlexPosn
+unquot :: String -> String
+unquot s = init (tail s)
 
-        | TkComma AlexPosn
-        | TkColon AlexPosn
-        | TkSemicolon AlexPosn
-        | TkLParen AlexPosn
-        | TkRParen AlexPosn
-        | TkLBrack AlexPosn
-        | TkRBrack AlexPosn
-        | TkLBrace AlexPosn
-        | TkRBrace AlexPosn
-        | TkDot AlexPosn
-        | TkPlus AlexPosn
-        | TkMinus AlexPosn
-        | TkTimes AlexPosn
-        | TkDevide AlexPosn
-        | TkEQ AlexPosn
-        | TkNEQ AlexPosn
-        | TkLT AlexPosn
-        | TkLE AlexPosn
-        | TkGT AlexPosn
-        | TkGE AlexPosn
-        | TkAnd AlexPosn
-        | TkOr AlexPosn
-        | TkAssign AlexPosn
-        
-        | TkId (String, AlexPosn)
-        | TkInt (Integer, AlexPosn)
-        | TkString (String, AlexPosn)
-        deriving (Eq, Show)
+data Token
+    = TkWhile AlexPosn
+    | TkFor AlexPosn
+    | TkTo AlexPosn
+    | TkBreak AlexPosn
+    | TkLet AlexPosn
+    | TkIn AlexPosn
+    | TkEnd AlexPosn
+    | TkFunction AlexPosn
+    | TkVar AlexPosn
+    | TkType AlexPosn
+    | TkArray AlexPosn
+    | TkIf AlexPosn
+    | TkThen AlexPosn
+    | TkElse AlexPosn
+    | TkDo AlexPosn
+    | TkOf AlexPosn
+    | TkNil AlexPosn
+
+    | TkComma AlexPosn
+    | TkColon AlexPosn
+    | TkSemicolon AlexPosn
+    | TkLParen AlexPosn
+    | TkRParen AlexPosn
+    | TkLBrack AlexPosn
+    | TkRBrack AlexPosn
+    | TkLBrace AlexPosn
+    | TkRBrace AlexPosn
+    | TkDot AlexPosn
+    | TkPlus AlexPosn
+    | TkMinus AlexPosn
+    | TkTimes AlexPosn
+    | TkDevide AlexPosn
+    | TkEQ AlexPosn
+    | TkNEQ AlexPosn
+    | TkLT AlexPosn
+    | TkLE AlexPosn
+    | TkGT AlexPosn
+    | TkGE AlexPosn
+    | TkAnd AlexPosn
+    | TkOr AlexPosn
+    | TkAssign AlexPosn
+    
+    | TkId (String, AlexPosn)
+    | TkInt (Integer, AlexPosn)
+    | TkString (String, AlexPosn)
+    deriving (Eq, Show)
 
 showPos (AlexPn _ l c) = " at " ++ show (l, c)
 
