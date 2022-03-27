@@ -109,7 +109,7 @@ lvalue :: { Var }
 exp :: { Exp }
     : lvalue                                { A.VarExp $1 }
     | NIL                                   { A.NilExp }
-    | '(' exp ';' exp seqexp_ ')'           { A.SeqExp (concatSeqexp $2 (concatSeqexp $4 $5), pos $1) }
+    | '(' seqexp ')'                        { A.SeqExp ($2, pos $1) }
     | int                                   { A.IntExp (fst $1) }
     | string                                { A.StringExp (fst $1, pos (snd $1)) }
     | '-' exp %prec UMINUS                  { A.OpExp (A.IntExp 0) A.MinusOp $2 (pos $1) }

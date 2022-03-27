@@ -69,7 +69,7 @@ transExp (venv, tenv, exp) = trexp exp
         trexp (A.OpExp left op right pos)
                 | checkInt left && checkInt right = ExpTy () T.INT
                 | isComp op && checkString left && checkString right = ExpTy () T.INT
-                | isComp op = error $ show pos ++ "integer or string required"
+                | isComp op = error $ show pos ++ "comparison of incompatible types"
                 | otherwise = error $ show pos ++ "integer required"
             where
                 isComp :: A.Oper -> Bool
@@ -246,11 +246,10 @@ transvar (venv, tenv, decs) = case decs of
                                 | otherwise -> error $ show pos ++ "type not matched"
                             where
                                 venv' = S.enter venv name (E.VarEntry t)
-                Nothing
-                        | T.UNIT @@ ty (transExp (venv, tenv, init)) -> transvar (venv', tenv, ds)
-                        | otherwise -> error $ show pos ++ "type not matched"
+                Nothing -> transvar (venv', tenv, ds)
                     where
-                        venv' = S.enter venv name (E.VarEntry T.UNIT)
+                        t = ty (transExp (venv, tenv, init))
+                        venv' = S.enter venv name (E.VarEntry t)
         _ : ds -> transvar (venv, tenv, ds)
 
 transTy :: (TEnv, A.Ty) -> String -> T.Ty
