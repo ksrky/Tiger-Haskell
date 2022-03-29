@@ -104,13 +104,14 @@ transExp st@(ST venv tenv _ _) exp = trexp exp
                                         | key == x = Just (y, z)
                                         | otherwise = lookup3 key xyzs
                         _ -> error $ show pos ++ "record type required"
-        trexp (A.SeqExp (seqexp, pos)) = trexps seqexp
+        trexp (A.SeqExp (seqexp, pos)) =
+                if null seqexp
+                        then ExpTy () T.UNIT
+                        else last (trexps seqexp)
             where
-                trexps :: [A.Exp] -> ExpTy
-                trexps [] = ExpTy () T.UNIT
-                trexps (e : es)
-                        | null es = trexp e
-                        | otherwise = trexps es
+                trexps :: [A.Exp] -> [ExpTy]
+                trexps [] = []
+                trexps (e : es) = trexp e : trexps es
         trexp (A.AssignExp v exp pos) =
                 if ty (transVar st v) @@ ty (trexp exp)
                         then ExpTy () T.UNIT
@@ -248,11 +249,9 @@ transvar st@(ST venv tenv lev s) decs = case decs of
                             where
                                 venv' = S.enter venv name (E.VarEntry acs t)
                                 acs = TL.allocLocal lev esc
-                Nothing
-                        | T.UNIT @@ ty (transExp st init) -> transvar st{venv = venv'} ds
-                        | otherwise -> error $ show pos ++ "type missmatched"
+                Nothing -> transvar st{venv = venv'} ds
                     where
-                        venv' = S.enter venv name (E.VarEntry acs T.UNIT)
+                        venv' = S.enter venv name (E.VarEntry acs (ty $ transExp st init))
                         acs = TL.allocLocal lev esc
         _ : ds -> transvar st ds
 

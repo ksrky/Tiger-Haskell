@@ -131,7 +131,7 @@ exp :: { Exp }
     | lvalue ':=' exp                       { A.AssignExp $1 $3 (pos $2) }
     | IF exp THEN exp ELSE exp              { A.IfExp $2 $4 (Just $6) (pos $1) }
     | IF exp THEN exp                       { A.IfExp $2 $4 Nothing (pos $1) }
-    | WHILE '(' exp ')' DO exp              { A.WhileExp $3 $6 (pos $1) }
+    | WHILE exp DO exp                      { A.WhileExp $2 $4 (pos $1) }
     | FOR id ':=' exp TO exp DO exp         { A.ForExp (fst $2) True $4 $6 $8 (pos $1) }
     | BREAK                                 { A.BreakExp (pos $1) }
     | LET decs IN seqexp END                { A.LetExp $2 (A.SeqExp ($4, pos $3)) (pos $1) }
