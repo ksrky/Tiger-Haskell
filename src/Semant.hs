@@ -3,13 +3,23 @@ module Semant where
 import qualified Absyn as A
 import qualified Env as E
 import qualified Symbol as S
-import qualified Translate
+import qualified Temp
+import qualified Translate as TL
 import qualified Types as T
 
 type VEnv = S.Table E.EnvEntry
 type TEnv = S.Table T.Ty
 
-data ExpTy = ExpTy {exp :: Translate.Exp, ty :: T.Ty} deriving (Show)
+data ExpTy = ExpTy {exp :: TL.Exp, ty :: T.Ty} deriving (Show)
+
+data ST = ST {venv :: VEnv, tenv :: TEnv, level :: TL.Level, state :: Temp.State}
+
+getTy :: (ExpTy, TL.Level, Temp.State) -> T.Ty
+getTy (ExpTy _ ty, _, _) = ty
+
+--dirty
+fst3 :: (a, b, c) -> a
+fst3 (x, y, z) = x
 
 actualTy :: T.Ty -> Maybe T.Ty
 actualTy ty = case ty of
@@ -25,14 +35,14 @@ isNil ty = case actualTy ty of
 (@@) :: T.Ty -> T.Ty -> Bool
 (@@) lty rty = actualTy lty == actualTy rty || isNil lty || isNil rty -- warning: Nothing == Nothing
 
-transVar :: (VEnv, TEnv, A.Var) -> ExpTy
-transVar (venv, tenv, var) = trvar var
+transVar :: ST -> A.Var -> ExpTy
+transVar st@(ST venv _ _ _) = trvar
     where
         trvar :: A.Var -> ExpTy
         trvar (A.SimpleVar id pos) = case S.look venv id of
                 Nothing -> error $ show pos ++ "undefined variable: " ++ id
-                Just (E.VarEntry ty) -> ExpTy () ty
-                Just (E.FunEntry _ _) -> error $ show pos ++ "not a variable: " ++ id
+                Just (E.VarEntry _ ty) -> ExpTy () ty
+                Just (E.FunEntry{}) -> error $ show pos ++ "not a variable: " ++ id
         trvar (A.FieldVar v id pos) = case ty $ trvar v of
                 T.RECORD fs _ -> case lookup id fs of
                         Nothing -> error $ show pos ++ "field not found: " ++ id
@@ -40,22 +50,22 @@ transVar (venv, tenv, var) = trvar var
                 ty -> error $ show pos ++ "not a record: " ++ show ty
         trvar (A.SubscriptVar v exp pos) = case ty $ trvar v of
                 T.ARRAY ty' _
-                        | ty (transExp (venv, tenv, exp)) @@ ty' -> ExpTy () ty'
+                        | ty (transExp st exp) @@ ty' -> ExpTy () ty'
                         | otherwise -> error $ show pos ++ "type not matched"
                 ty' -> error $ show pos ++ "not an array: " ++ show ty'
 
-transExp :: (VEnv, TEnv, A.Exp) -> ExpTy
-transExp (venv, tenv, exp) = trexp exp
+transExp :: ST -> A.Exp -> ExpTy
+transExp st@(ST venv tenv _ _) exp = trexp exp
     where
         trexp :: A.Exp -> ExpTy
-        trexp (A.VarExp v) = transVar (venv, tenv, v)
+        trexp (A.VarExp v) = transVar st v
         trexp A.NilExp = ExpTy () T.NIL
         trexp (A.IntExp _) = ExpTy () T.INT
         trexp (A.StringExp _) = ExpTy () T.STRING
         trexp (A.CallExp func args pos) = case S.look venv func of
                 Nothing -> error $ show pos ++ "undefined function: " ++ func
-                Just (E.VarEntry ty) -> error $ show pos ++ "not a function (in actualTy): " ++ func
-                Just (E.FunEntry formals result)
+                Just (E.VarEntry _ ty) -> error $ show pos ++ "not a function (in actualTy): " ++ func
+                Just (E.FunEntry _ _ formals result)
                         | length args /= length formals -> error $ show pos ++ "wrong number of arguments"
                         | checkFormals args formals -> case actualTy result of
                                 Just ty -> ExpTy () ty
@@ -102,7 +112,7 @@ transExp (venv, tenv, exp) = trexp exp
                         | null es = trexp e
                         | otherwise = trexps es
         trexp (A.AssignExp v exp pos) =
-                if ty (transVar (venv, tenv, v)) @@ ty (trexp exp)
+                if ty (transVar st v) @@ ty (trexp exp)
                         then ExpTy () T.UNIT
                         else error $ show pos ++ "var type not matched"
         trexp (A.IfExp test then' else' pos)
@@ -122,9 +132,9 @@ transExp (venv, tenv, exp) = trexp exp
                 | not (checkInt lo) || not (checkInt hi) = error $ show pos ++ "lo and hi must be integer"
                 | otherwise = trexp body
         trexp (A.BreakExp _) = ExpTy () T.UNIT -- todo: BreakExp must be used in WhileExp/ForExp
-        trexp (A.LetExp decs body pos) = transExp (venv', tenv', body)
+        trexp (A.LetExp decs body pos) = transExp st' body
             where
-                (venv', tenv') = transDecs (venv, tenv, decs)
+                st' = transDec st decs
         trexp (A.ArrayExp typ size init pos) = case S.look tenv typ of
                 Nothing -> error $ show pos ++ "type not found: " ++ typ
                 Just t -> case actualTy t of
@@ -144,64 +154,49 @@ transExp (venv, tenv, exp) = trexp exp
         checkUnit :: A.Exp -> Bool
         checkUnit exp = ty (trexp exp) @@ T.UNIT
 
-transDecs :: (VEnv, TEnv, [A.Dec]) -> (VEnv, TEnv)
-transDecs inp = trdecs (register inp)
+transDec :: ST -> [A.Dec] -> ST
+transDec st decs = trdecs (register st decs) decs
 
-register :: (VEnv, TEnv, [A.Dec]) -> (VEnv, TEnv, [A.Dec])
-register (venv, tenv, decs) = res'
+register :: ST -> [A.Dec] -> ST
+register st@(ST venv tenv lev s) decs = st'
     where
-        res' = tappend (regisfun res) decs
-        res = tappend (registy (venv, tenv, decs)) decs
-        tappend :: (a, b) -> c -> (a, b, c)
-        tappend (x, y) z = (x, y, z)
+        st' = regisfun st{tenv = tenv'} decs
+        tenv' = registy (venv, tenv) decs
 
-registy :: (VEnv, TEnv, [A.Dec]) -> (VEnv, TEnv)
-registy (venv, tenv, decs) = case decs of
-        [] -> (venv, tenv)
-        A.TypeDec name ty pos : ds -> registy (venv, tenv', ds)
+registy :: (VEnv, TEnv) -> [A.Dec] -> TEnv
+registy (venv, tenv) decs = case decs of
+        [] -> tenv
+        A.TypeDec name ty pos : ds -> registy (venv, tenv') ds
             where
                 tenv' = S.enter tenv name (T.NAME name Nothing)
-        _ : ds -> registy (venv, tenv, ds)
+        _ : ds -> registy (venv, tenv) ds
 
-regisfun :: (VEnv, TEnv, [A.Dec]) -> (VEnv, TEnv)
-regisfun (venv, tenv, decs) = case decs of
-        [] -> (venv, tenv)
+regisfun :: ST -> [A.Dec] -> ST
+regisfun st@(ST venv tenv lev s) decs = case decs of
+        [] -> st
         A.FunDec name params result body _ : ds -> case result of
                 Just (typ, p) -> case S.look tenv typ of
                         Nothing -> error $ show p ++ "type not found: " ++ typ
-                        Just result_ty -> regisfun (venv', tenv, ds)
+                        Just result_ty -> regisfun st{venv = venv', state = s'} ds
                             where
-                                venv' = S.enter venv name (E.FunEntry (map snd params') result_ty)
-                Nothing -> regisfun (venv', tenv, ds)
+                                venv' = S.enter venv name (E.FunEntry lev lab (map snd params') result_ty)
+                Nothing -> regisfun st{venv = venv', state = s'} ds
                     where
-                        venv' = S.enter venv name (E.FunEntry (map snd params') T.UNIT)
+                        venv' = S.enter venv name (E.FunEntry lev lab (map snd params') T.UNIT)
             where
                 params' = map transparam params
                 transparam :: A.Field -> (S.Symbol, T.Ty)
                 transparam (A.Field name _ typ pos) = case S.look tenv typ of
                         Just t -> (name, t)
                         Nothing -> error $ show pos ++ "type not found: " ++ typ
-        _ : ds -> regisfun (venv, tenv, ds)
+                (lab, s') = Temp.newLabel s
+        _ : ds -> regisfun st ds
 
-regisvar :: (VEnv, TEnv, [A.Dec]) -> (VEnv, TEnv)
-regisvar (venv, tenv, decs) = case decs of
-        [] -> (venv, tenv)
-        A.VarDec name _ mtyp init _ : ds -> case mtyp of
-                Just (typ, p) -> case S.look tenv typ of
-                        Nothing -> error $ show p ++ "type not found: " ++ typ
-                        Just ty -> regisvar (venv', tenv, ds)
-                            where
-                                venv' = S.enter venv name (E.VarEntry ty)
-                Nothing -> regisvar (venv', tenv, ds)
-                    where
-                        venv' = S.enter venv name (E.VarEntry T.UNIT)
-        _ : ds -> regisvar (venv, tenv, ds)
-
-trdecs :: (VEnv, TEnv, [A.Dec]) -> (VEnv, TEnv)
-trdecs (venv, tenv, decs) = (venv'', tenv')
+trdecs :: ST -> [A.Dec] -> ST
+trdecs st@(ST venv tenv lev s) decs = st''
     where
-        venv'' = transvar (venv', tenv', decs)
-        venv' = transfun (venv, tenv', decs)
+        st'' = transvar st' decs
+        st' = transfun st{tenv = tenv'} decs
         tenv' = transty (tenv, decs)
 
 transty :: (TEnv, [A.Dec]) -> TEnv
@@ -212,45 +207,54 @@ transty (tenv, decs) = case decs of
                 tenv' = S.enter tenv name (transTy (tenv, ty) name)
         _ : ds -> transty (tenv, ds)
 
-transfun :: (VEnv, TEnv, [A.Dec]) -> VEnv
-transfun (venv, tenv, decs) = case decs of
-        [] -> venv
+transfun :: ST -> [A.Dec] -> ST
+transfun st@(ST venv tenv lev s) decs = case decs of
+        [] -> st
         A.FunDec name params result body pos : ds -> case result of
                 Just (typ, p) -> case S.look tenv typ of
                         Nothing -> error $ show p ++ "type not found: " ++ typ -- unreachable
                         Just result_ty
-                                | result_ty @@ ty (transExp (venv', tenv, body)) -> transfun (venv, tenv, ds)
+                                | result_ty @@ ty (transExp st'{level = lev'} body) -> transfun st' ds
                                 | otherwise -> error $ show pos ++ "result type not matched"
                 Nothing
-                        | T.UNIT @@ ty (transExp (venv', tenv, body)) -> transfun (venv, tenv, ds)
+                        | T.UNIT @@ ty (transExp st'{level = lev'} body) -> transfun st' ds
                         | otherwise -> error $ show pos ++ "result type not matched"
             where
+                st' = st{venv = venv', state = s'}
+                (lev', s') =
+                        let escs = replicate (length params) True -- note: default
+                         in TL.newLevel lev escs s'
                 params' = map transparam params
-                transparam :: A.Field -> (S.Symbol, T.Ty)
-                transparam (A.Field name _ typ pos) = case S.look tenv typ of
-                        Just t -> (name, t)
+                transparam :: A.Field -> (S.Symbol, Bool, T.Ty)
+                transparam (A.Field name esc typ pos) = case S.look tenv typ of
+                        Just t -> (name, esc, t)
                         Nothing -> error $ show pos ++ "type not found: " ++ typ
                 venv' = foldr enterparam venv params'
-                enterparam :: (S.Symbol, T.Ty) -> VEnv -> VEnv
-                enterparam (name, ty') venv = S.enter venv name (E.VarEntry ty')
-        _ : ds -> transfun (venv, tenv, ds)
+                enterparam :: (S.Symbol, Bool, T.Ty) -> VEnv -> VEnv
+                enterparam (name, esc, ty) venv =
+                        let acs = TL.allocLocal lev' esc
+                         in S.enter venv name (E.VarEntry acs ty)
+        _ : ds -> transfun st ds
 
-transvar :: (VEnv, TEnv, [A.Dec]) -> VEnv
-transvar (venv, tenv, decs) = case decs of
-        [] -> venv
-        A.VarDec name _ mtyp init pos : ds -> case mtyp of
+transvar :: ST -> [A.Dec] -> ST
+transvar st@(ST venv tenv lev s) decs = case decs of
+        [] -> st
+        A.VarDec name esc mtyp init pos : ds -> case mtyp of
                 Just (typ, p) -> case S.look tenv typ of
                         Nothing -> error $ show p ++ "type not found: " ++ typ
                         Just t
-                                | t @@ ty (transExp (venv, tenv, init)) -> transvar (venv', tenv, ds)
+                                | t @@ ty (transExp st init) -> transvar st{venv = venv'} ds
                                 | otherwise -> error $ show pos ++ "type not matched"
                             where
-                                venv' = S.enter venv name (E.VarEntry t)
-                Nothing -> transvar (venv', tenv, ds)
+                                venv' = S.enter venv name (E.VarEntry acs t)
+                                acs = TL.allocLocal lev esc
+                Nothing
+                        | T.UNIT @@ ty (transExp st init) -> transvar st{venv = venv'} ds
+                        | otherwise -> error $ show pos ++ "type missmatched"
                     where
-                        t = ty (transExp (venv, tenv, init))
-                        venv' = S.enter venv name (E.VarEntry t)
-        _ : ds -> transvar (venv, tenv, ds)
+                        venv' = S.enter venv name (E.VarEntry acs T.UNIT)
+                        acs = TL.allocLocal lev esc
+        _ : ds -> transvar st ds
 
 transTy :: (TEnv, A.Ty) -> String -> T.Ty
 transTy (tenv, A.NameTy typ pos) _ = case S.look tenv typ of

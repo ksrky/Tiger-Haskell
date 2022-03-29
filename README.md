@@ -19,4 +19,4 @@ ghci> Parser.Test.main
 ghci> Semant.Test.main
 [tiger-typecheck]file name here: [file_name]
 ```
-where *[file_name]* is a name of a file in *./testcases*
+where *[file_name]* is a name of a file in *./testcases*.

@@ -6,6 +6,9 @@ type Symbol = String
 
 type Table a = M.Map Symbol a
 
+symbol :: String -> Symbol
+symbol s = s
+
 empty :: Table a
 empty = M.empty
 

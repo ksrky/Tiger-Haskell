@@ -29,6 +29,9 @@ library
   exposed-modules:
       Absyn
       Env
+      FindEscape
+      Frame
+      Frame.MIPSFrame
       Lexer
       Lexer.REPL
       Lexer.Test
@@ -38,6 +41,7 @@ library
       Semant
       Semant.Test
       Symbol
+      Temp
       Translate
       Types
   other-modules:

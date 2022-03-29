@@ -3,7 +3,9 @@ module Semant.Test where
 import Env (baseTEnv, baseVEnv)
 import Lexer (alexScanTokens)
 import Parser (parse)
-import Semant (transExp)
+import Semant (ST (ST), transExp)
+import Temp (initState)
+import Translate (Level (Outermost))
 
 import Control.Monad.Trans.Class (MonadTrans (lift))
 import System.Console.Haskeline (
@@ -30,8 +32,13 @@ test = do
         case minput of
                 Nothing -> return ()
                 Just input -> lift $ do
-                        handle <- openFile ("testcases/" ++ input) ReadMode
+                        handle <-
+                                let filename =
+                                        if take 4 (reverse input) == reverse ".tig"
+                                                then input
+                                                else input ++ ".tig"
+                                 in openFile ("testcases/" ++ filename) ReadMode
                         contents <- hGetContents handle
                         let absyn = parse $ alexScanTokens contents
-                         in print (transExp (baseVEnv, baseTEnv, absyn))
+                         in print (transExp (ST baseVEnv baseTEnv Outermost initState) absyn)
                         hClose handle
