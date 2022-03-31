@@ -43,6 +43,7 @@ library
       Symbol
       Temp
       Translate
+      Tree
       Types
   other-modules:
       Paths_tiger

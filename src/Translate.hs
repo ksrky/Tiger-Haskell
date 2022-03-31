@@ -3,14 +3,13 @@ module Translate where
 import qualified Frame
 import qualified Frame.MIPSFrame as MIPSFrame
 import qualified Temp
-
-type Exp = ()
+import qualified Tree as T
 
 data Level
         = Level
                 { parent :: Level
                 , name :: Temp.Label
-                , formasls :: [Bool]
+                , formals :: [Bool]
                 , frame :: MIPSFrame.Frame
                 }
         | Outermost
@@ -29,3 +28,27 @@ allocLocal lev@Level{frame = frm} esc = Access lev acs
     where
         acs = Frame.allocLocal frm esc
 allocLocal Outermost _ = error ""
+
+type Exp = ()
+
+{-}= Ex T.Exp
+| Nx T.Stm
+| Cx ((Temp.Label, Temp.Label) -> T.Stm)-}
+
+unEx :: Exp -> T.Exp
+unEx = undefined
+
+{-unEx (Ex e) = e
+unEx (Cx genstm)= T.ESEQ [T.MOVE (T.TEMP r) (T.CONST 1),
+        genstm (t, f),
+        T.LABEL f,
+        T.MOVE (T.TEMP r) (T.CONST 0),
+        T.LABEL t] (T.TEMP r)
+        where
+                r = Temp.newTemp
+                t = Temp.newLabel
+                f = Temp.newLabel
+unEx (Nx s) = T.ESEQ s (T.CONST 0) -}
+
+simpleVar :: (Access, Level) -> Exp
+simpleVar = undefined

@@ -10,21 +10,20 @@ import qualified Types as T
 type VEnv = S.Table E.EnvEntry
 type TEnv = S.Table T.Ty
 
-data ExpTy = ExpTy {exp :: TL.Exp, ty :: T.Ty} deriving (Show)
+data ExpTy = ExpTy {exp :: TL.Exp, ty :: T.Ty}
+
+instance Show ExpTy where
+        show (ExpTy _ ty) = show ty
 
 data ST = ST {venv :: VEnv, tenv :: TEnv, level :: TL.Level, state :: Temp.State}
 
 getTy :: (ExpTy, TL.Level, Temp.State) -> T.Ty
 getTy (ExpTy _ ty, _, _) = ty
 
---dirty
-fst3 :: (a, b, c) -> a
-fst3 (x, y, z) = x
-
 actualTy :: T.Ty -> Maybe T.Ty
 actualTy ty = case ty of
         T.NAME _ mty -> actualTy =<< mty
-        T.ARRAY ty' u -> T.ARRAY <$> actualTy ty' <*> Just u
+        T.ARRAY ty' -> T.ARRAY <$> actualTy ty'
         _ -> Just ty
 
 isNil :: T.Ty -> Bool
@@ -44,12 +43,12 @@ transVar st@(ST venv _ _ _) = trvar
                 Just (E.VarEntry _ ty) -> ExpTy () ty
                 Just (E.FunEntry{}) -> error $ show pos ++ "not a variable: " ++ id
         trvar (A.FieldVar v id pos) = case ty $ trvar v of
-                T.RECORD fs _ -> case lookup id fs of
+                T.RECORD fs -> case lookup id fs of
                         Nothing -> error $ show pos ++ "field not found: " ++ id
                         Just ty -> ExpTy () ty
                 ty -> error $ show pos ++ "not a record: " ++ show ty
         trvar (A.SubscriptVar v exp pos) = case ty $ trvar v of
-                T.ARRAY ty' _
+                T.ARRAY ty'
                         | ty (transExp st exp) @@ ty' -> ExpTy () ty'
                         | otherwise -> error $ show pos ++ "type not matched"
                 ty' -> error $ show pos ++ "not an array: " ++ show ty'
@@ -88,7 +87,7 @@ transExp st@(ST venv tenv _ _) exp = trexp exp
                 Nothing -> error $ show pos ++ "record type not found: " ++ typ
                 Just ty' -> case actualTy ty' of
                         Nothing -> error $ show pos ++ "type not found (in actualTy): " ++ show ty'
-                        Just (T.RECORD fs_ty u) -> ExpTy () (T.RECORD (transrecord fields fs_ty) u)
+                        Just (T.RECORD fs_ty) -> ExpTy () (T.RECORD (transrecord fields fs_ty))
                             where
                                 {- order of records doesn't matter -}
                                 transrecord :: [(A.Symbol, A.Exp, A.Pos)] -> [(S.Symbol, T.Ty)] -> [(S.Symbol, T.Ty)]
@@ -140,9 +139,9 @@ transExp st@(ST venv tenv _ _) exp = trexp exp
                 Nothing -> error $ show pos ++ "type not found: " ++ typ
                 Just t -> case actualTy t of
                         Nothing -> error $ show pos ++ "type not found (in actualTy): " ++ show t
-                        Just (T.ARRAY t' u)
+                        Just (T.ARRAY t')
                                 | not $ checkInt size -> error $ show pos ++ "array size must be integer"
-                                | ty (trexp init) @@ t' -> ExpTy () (T.ARRAY t' u)
+                                | ty (trexp init) @@ t' -> ExpTy () (T.ARRAY t')
                                 | otherwise -> error $ show pos ++ "type not matched"
                         _ -> error $ show pos ++ "array type required"
 
@@ -205,7 +204,7 @@ transty (tenv, decs) = case decs of
         [] -> tenv
         A.TypeDec name ty pos : ds -> transty (tenv', ds)
             where
-                tenv' = S.enter tenv name (transTy (tenv, ty) name)
+                tenv' = S.enter tenv name (transTy (tenv, ty))
         _ : ds -> transty (tenv, ds)
 
 transfun :: ST -> [A.Dec] -> ST
@@ -255,16 +254,16 @@ transvar st@(ST venv tenv lev s) decs = case decs of
                         acs = TL.allocLocal lev esc
         _ : ds -> transvar st ds
 
-transTy :: (TEnv, A.Ty) -> String -> T.Ty
-transTy (tenv, A.NameTy typ pos) _ = case S.look tenv typ of
+transTy :: (TEnv, A.Ty) -> T.Ty
+transTy (tenv, A.NameTy typ pos) = case S.look tenv typ of
         Just ty -> ty -- todo: detect invalid cycle
         Nothing -> error $ show pos ++ "type not found: " ++ typ
-transTy (tenv, A.RecordTy fields) str = T.RECORD (map transfield fields) (T.unique str)
+transTy (tenv, A.RecordTy fields) = T.RECORD (map transfield fields)
     where
         transfield :: A.Field -> (S.Symbol, T.Ty)
         transfield (A.Field name _ typ pos) = case S.look tenv typ of
                 Just ty -> (name, ty)
                 Nothing -> error $ show pos ++ "type not found: " ++ typ
-transTy (tenv, A.ArrayTy typ pos) str = case S.look tenv typ of
-        Just ty -> T.ARRAY ty (T.unique str)
+transTy (tenv, A.ArrayTy typ pos) = case S.look tenv typ of
+        Just ty -> T.ARRAY ty
         Nothing -> error $ show pos ++ "type not found: " ++ typ

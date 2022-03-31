@@ -1,17 +1,15 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Use newtype instead of data" #-}
 module Types where
 
 import qualified Symbol
 
-type Unique = Int -- haskell doesn't support 'ref', so use type names as unique values
-
-unique :: String -> Int
-unique str = -1 -- todo: generate unique id
-
 data Ty
         = INT
         | STRING
-        | RECORD [(Symbol.Symbol, Ty)] Unique
-        | ARRAY Ty Unique
+        | RECORD [(Symbol.Symbol, Ty)]
+        | ARRAY Ty
         | NIL
         | UNIT
         | NAME Symbol.Symbol (Maybe Ty)

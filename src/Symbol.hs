@@ -9,6 +9,9 @@ type Table a = M.Map Symbol a
 symbol :: String -> Symbol
 symbol s = s
 
+new :: [(String, a)] -> Table a
+new = M.fromList
+
 empty :: Table a
 empty = M.empty
 

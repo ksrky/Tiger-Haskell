@@ -1,11 +1,9 @@
 module Env where
 
 import qualified Symbol
-import Temp
+import qualified Temp
 import qualified Translate as TL
 import qualified Types as T
-
-import qualified Data.Map.Strict as M
 
 data EnvEntry
         = VarEntry {access :: TL.Access, ty :: T.Ty}
@@ -15,13 +13,13 @@ type BaseTEnv = Symbol.Table T.Ty
 type BaseVEnv = Symbol.Table EnvEntry
 
 baseTEnv :: BaseTEnv
-baseTEnv = M.fromList [("int", T.INT), ("string", T.STRING)]
+baseTEnv = Symbol.new [("int", T.INT), ("string", T.STRING)]
 
 baseVEnv :: BaseVEnv
-baseVEnv = M.fromList $ map funentry xs
+baseVEnv = Symbol.new $ map funentry xs
     where
         funentry :: (Symbol.Symbol, [T.Ty], T.Ty) -> (String, EnvEntry)
-        funentry (name, formals, result) = (name, FunEntry TL.Outermost (Temp.namedLabel name) formals result)
+        funentry (name, fmls, res) = (name, FunEntry TL.Outermost (Temp.namedLabel name) fmls res)
         xs =
                 [ ("print", [T.STRING], T.UNIT)
                 , ("flush", [], T.UNIT)
