@@ -17,9 +17,6 @@ instance Show ExpTy where
 
 data ST = ST {venv :: VEnv, tenv :: TEnv, level :: TL.Level, state :: Temp.State}
 
-getTy :: (ExpTy, TL.Level, Temp.State) -> T.Ty
-getTy (ExpTy _ ty, _, _) = ty
-
 actualTy :: T.Ty -> Maybe T.Ty
 actualTy ty = case ty of
         T.NAME _ mty -> actualTy =<< mty
@@ -31,25 +28,25 @@ isNil ty = case actualTy ty of
         Just t -> T.NIL == t
         Nothing -> False
 
-(@@) :: T.Ty -> T.Ty -> Bool
+(@@) :: T.Ty -> T.Ty -> Bool -- 'nil' matches all types
 (@@) lty rty = actualTy lty == actualTy rty || isNil lty || isNil rty -- warning: Nothing == Nothing
 
 transVar :: ST -> A.Var -> ExpTy
-transVar st@(ST venv _ _ _) = trvar
+transVar st@(ST venv _ lev _) = trvar
     where
         trvar :: A.Var -> ExpTy
         trvar (A.SimpleVar id pos) = case S.look venv id of
                 Nothing -> error $ show pos ++ "undefined variable: " ++ id
-                Just (E.VarEntry _ ty) -> ExpTy () ty
+                Just (E.VarEntry acs ty) -> ExpTy (TL.simpleVar (acs, lev)) ty
                 Just (E.FunEntry{}) -> error $ show pos ++ "not a variable: " ++ id
         trvar (A.FieldVar v id pos) = case ty $ trvar v of
                 T.RECORD fs -> case lookup id fs of
                         Nothing -> error $ show pos ++ "field not found: " ++ id
-                        Just ty -> ExpTy () ty
+                        Just ty -> ExpTy undefined ty
                 ty -> error $ show pos ++ "not a record: " ++ show ty
         trvar (A.SubscriptVar v exp pos) = case ty $ trvar v of
                 T.ARRAY ty'
-                        | ty (transExp st exp) @@ ty' -> ExpTy () ty'
+                        | T.INT @@ ty (transExp st exp) -> ExpTy undefined ty'
                         | otherwise -> error $ show pos ++ "type not matched"
                 ty' -> error $ show pos ++ "not an array: " ++ show ty'
 
@@ -58,16 +55,16 @@ transExp st@(ST venv tenv _ _) exp = trexp exp
     where
         trexp :: A.Exp -> ExpTy
         trexp (A.VarExp v) = transVar st v
-        trexp A.NilExp = ExpTy () T.NIL
-        trexp (A.IntExp _) = ExpTy () T.INT
-        trexp (A.StringExp _) = ExpTy () T.STRING
+        trexp A.NilExp = ExpTy undefined T.NIL
+        trexp (A.IntExp _) = ExpTy undefined T.INT
+        trexp (A.StringExp _) = ExpTy undefined T.STRING
         trexp (A.CallExp func args pos) = case S.look venv func of
                 Nothing -> error $ show pos ++ "undefined function: " ++ func
                 Just (E.VarEntry _ ty) -> error $ show pos ++ "not a function (in actualTy): " ++ func
                 Just (E.FunEntry _ _ formals result)
                         | length args /= length formals -> error $ show pos ++ "wrong number of arguments"
                         | checkFormals args formals -> case actualTy result of
-                                Just ty -> ExpTy () ty
+                                Just ty -> ExpTy undefined ty
                                 Nothing -> error $ show pos ++ "result type not found: " ++ show result
                         | otherwise -> error $ show pos ++ "argument type not matched"
                     where
@@ -76,8 +73,8 @@ transExp st@(ST venv tenv _ _) exp = trexp exp
                         checkFormals (a : as) (t : ts) = t @@ ty (trexp a) && checkFormals as ts
                         checkFormals _ _ = error $ show pos ++ "wrong number of arguments" -- unreachable
         trexp (A.OpExp left op right pos)
-                | checkInt left && checkInt right = ExpTy () T.INT
-                | isComp op && checkString left && checkString right = ExpTy () T.INT
+                | checkInt left && checkInt right = ExpTy undefined T.INT
+                | isComp op && checkString left && checkString right = ExpTy undefined T.INT
                 | isComp op = error $ show pos ++ "comparison of incompatible types"
                 | otherwise = error $ show pos ++ "integer required"
             where
@@ -87,61 +84,57 @@ transExp st@(ST venv tenv _ _) exp = trexp exp
                 Nothing -> error $ show pos ++ "record type not found: " ++ typ
                 Just ty' -> case actualTy ty' of
                         Nothing -> error $ show pos ++ "type not found (in actualTy): " ++ show ty'
-                        Just (T.RECORD fs_ty) -> ExpTy () (T.RECORD (transrecord fields fs_ty))
+                        Just (T.RECORD fs_ty) ->
+                                ExpTy undefined (T.RECORD $ transrecord (map (\(x, y, z) -> (x, (y, z))) fields) fs_ty)
                             where
                                 {- order of records doesn't matter -}
-                                transrecord :: [(A.Symbol, A.Exp, A.Pos)] -> [(S.Symbol, T.Ty)] -> [(S.Symbol, T.Ty)]
+                                transrecord :: [(A.Symbol, (A.Exp, A.Pos))] -> [(S.Symbol, T.Ty)] -> [(S.Symbol, T.Ty)]
                                 transrecord _ [] = fs_ty
-                                transrecord fs ((s, t) : sts) = case lookup3 s fs of
+                                transrecord fs ((s, t) : sts) = case lookup s fs of
                                         Just (e, p)
                                                 | ty (trexp e) @@ t -> transrecord fs sts
-                                                | otherwise -> error $ show p ++ "record type not matched. expected " ++ s ++ ":" ++ show t
+                                                | otherwise -> error $ show p ++ "record type not matched"
                                         Nothing -> error $ show pos ++ "record not found: " ++ s
-                                lookup3 :: (Eq a) => a -> [(a, b, c)] -> Maybe (b, c)
-                                lookup3 _ [] = Nothing
-                                lookup3 key ((x, y, z) : xyzs)
-                                        | key == x = Just (y, z)
-                                        | otherwise = lookup3 key xyzs
                         _ -> error $ show pos ++ "record type required"
         trexp (A.SeqExp (seqexp, pos)) =
                 if null seqexp
-                        then ExpTy () T.UNIT
-                        else last (trexps seqexp)
+                        then ExpTy undefined T.UNIT
+                        else last (trexps seqexp) --todo: don't evaluate all exps
             where
                 trexps :: [A.Exp] -> [ExpTy]
                 trexps [] = []
                 trexps (e : es) = trexp e : trexps es
         trexp (A.AssignExp v exp pos) =
                 if ty (transVar st v) @@ ty (trexp exp)
-                        then ExpTy () T.UNIT
+                        then ExpTy undefined T.UNIT
                         else error $ show pos ++ "var type not matched"
         trexp (A.IfExp test then' else' pos)
                 | not $ checkInt test = error $ show pos ++ "test must be integer"
                 | otherwise = case else' of
                         Nothing
-                                | checkUnit then' -> ExpTy () T.UNIT
+                                | checkUnit then' -> ExpTy undefined T.UNIT
                                 | otherwise -> error $ show pos ++ "then must be unit when else is none"
                         Just else''
                                 | ty (trexp then') @@ ty (trexp else'') -> trexp then'
                                 | otherwise -> error $ show pos ++ "types of then - else differ"
         trexp (A.WhileExp test body pos)
                 | not $ checkInt test = error $ show pos ++ "test must be integer"
-                | checkUnit body = ExpTy () T.UNIT
+                | checkUnit body = ExpTy undefined T.UNIT
                 | otherwise = error "body of while must be unit"
         trexp (A.ForExp name _ lo hi body pos)
                 | not (checkInt lo) || not (checkInt hi) = error $ show pos ++ "lo and hi must be integer"
                 | otherwise = trexp body
-        trexp (A.BreakExp _) = ExpTy () T.UNIT -- todo: BreakExp must be used in WhileExp/ForExp
+        trexp (A.BreakExp _) = ExpTy undefined T.UNIT -- todo: BreakExp must be used in WhileExp/ForExp
         trexp (A.LetExp decs body pos) = transExp st' body
             where
-                st' = transDec st decs
+                st' = transDecs st decs
         trexp (A.ArrayExp typ size init pos) = case S.look tenv typ of
                 Nothing -> error $ show pos ++ "type not found: " ++ typ
                 Just t -> case actualTy t of
                         Nothing -> error $ show pos ++ "type not found (in actualTy): " ++ show t
                         Just (T.ARRAY t')
                                 | not $ checkInt size -> error $ show pos ++ "array size must be integer"
-                                | ty (trexp init) @@ t' -> ExpTy () (T.ARRAY t')
+                                | ty (trexp init) @@ t' -> ExpTy undefined (T.ARRAY t')
                                 | otherwise -> error $ show pos ++ "type not matched"
                         _ -> error $ show pos ++ "array type required"
 
@@ -154,8 +147,8 @@ transExp st@(ST venv tenv _ _) exp = trexp exp
         checkUnit :: A.Exp -> Bool
         checkUnit exp = ty (trexp exp) @@ T.UNIT
 
-transDec :: ST -> [A.Dec] -> ST
-transDec st decs = trdecs (register st decs) decs
+transDecs :: ST -> [A.Dec] -> ST
+transDecs st decs = trdecs (register st decs) decs
 
 register :: ST -> [A.Dec] -> ST
 register st@(ST venv tenv lev s) decs = st'
@@ -189,7 +182,7 @@ regisfun st@(ST venv tenv lev s) decs = case decs of
                 transparam (A.Field name _ typ pos) = case S.look tenv typ of
                         Just t -> (name, t)
                         Nothing -> error $ show pos ++ "type not found: " ++ typ
-                (lab, s') = Temp.newLabel s
+                (lab, s') = Temp.app Temp.newLabel s
         _ : ds -> regisfun st ds
 
 trdecs :: ST -> [A.Dec] -> ST
@@ -223,7 +216,7 @@ transfun st@(ST venv tenv lev s) decs = case decs of
                 st' = st{venv = venv', state = s'}
                 (lev', s') =
                         let escs = replicate (length params) True -- note: default
-                         in TL.newLevel lev escs s'
+                         in TL.newLevel lev escs s
                 params' = map transparam params
                 transparam :: A.Field -> (S.Symbol, Bool, T.Ty)
                 transparam (A.Field name esc typ pos) = case S.look tenv typ of

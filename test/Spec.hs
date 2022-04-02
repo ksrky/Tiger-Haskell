@@ -3,3 +3,5 @@
 -- run test suit
 
 -- $ stack test
+
+-- see more info about hspec from https://hspec.github.io/

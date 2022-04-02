@@ -31,7 +31,7 @@ library
       Env
       FindEscape
       Frame
-      Frame.MIPSFrame
+      Frame.X64Frame
       Lexer
       Lexer.REPL
       Lexer.Test
@@ -87,6 +87,7 @@ test-suite tiger-test
   other-modules:
       LexerSpec
       ParserSpec
+      SemantSpec
       Paths_tiger
   hs-source-dirs:
       test

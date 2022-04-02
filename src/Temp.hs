@@ -1,6 +1,11 @@
 module Temp where
 
-import Symbol (Symbol, symbol)
+import qualified Symbol
+
+newtype ST s a = ST (s -> (a, s))
+
+app :: ST s a -> s -> (a, s)
+app (ST st) = st
 
 data State = State {temps :: Int, labs :: Int}
 
@@ -10,16 +15,14 @@ initState = State{temps = 0, labs = 0}
 type Temp = Int
 type Label = Symbol.Symbol
 
-newTemp :: State -> (Temp, State)
-newTemp t@State{temps = temps} = (temps, t{temps = temps + 1})
+newTemp :: ST State Temp
+newTemp = ST (\(State t l) -> (t, State (t + 1) l))
 
 makeString :: Int -> String
 makeString t = "t" ++ show t
 
-newLabel :: State -> (Label, State)
-newLabel t@State{labs = labs} = (label, t{labs = labs + 1})
- where
-  label = "L" ++ show labs
+newLabel :: ST State Label
+newLabel = ST (\(State t l) -> ("L" ++ show l, State t (l + 1)))
 
 namedLabel :: String -> Label
 namedLabel = Symbol.symbol
