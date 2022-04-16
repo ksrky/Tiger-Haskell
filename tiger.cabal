@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      Absyn
       Lexer
       Parser
       Token
@@ -62,6 +63,7 @@ test-suite tiger-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      ParserSpec
       Paths_tiger
   hs-source-dirs:
       test
