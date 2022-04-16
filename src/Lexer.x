@@ -1,168 +1,109 @@
--- see more info about alex from https://www.haskell.org/alex/doc/html/index.html
-
 {
-    module Lexer where
+module Lexer where
+
+import Token
 }
 
-%wrapper "posn"
+%wrapper "monadUserState"
 
 $digit = 0-9
 $alpha = [a-zA-Z]
-$graphic = $printable # $white 
--- $graphic matches all the characters in $printable that are not in $white.
--- $printable corresponds to Unicode code points 32 to 0x10ffff.
 
 @id = $alpha [$alpha $digit \_ \']*
 @string = \" ($printable # \")* \"
 
 tokens :-
 
-    $white+                                 ;
-    "//".*                                  ;
-    "/*".*"*/"                              ;
+<0,comment> $white+             ;
+<0> "//".*                      ;
+<0,comment> "/*"                { begin comment }
+<comment> [^$white]*"*/"        { begin 0 }
+<comment> [^$white]+            ;
 
-    while                                   { \pos _ -> TkWhile pos }
-    for                                     { \pos _ -> TkFor pos }
-    to                                      { \pos _ -> TkTo pos }
-    break                                   { \pos _ -> TkBreak pos }
-    let                                     { \pos _ -> TkLet pos }
-    in                                      { \pos _ -> TkIn pos }
-    end                                     { \pos _ -> TkEnd pos }
-    function                                { \pos _ -> TkFunction pos }
-    var                                     { \pos _ -> TkVar pos }
-    type                                    { \pos _ -> TkType pos }
-    array                                   { \pos _ -> TkArray pos }
-    if                                      { \pos _ -> TkIf pos }
-    then                                    { \pos _ -> TkThen pos }
-    else                                    { \pos _ -> TkElse pos }
-    do                                      { \pos _ -> TkDo pos }
-    of                                      { \pos _ -> TkOf pos }
-    nil                                     { \pos _ -> TkNil pos }
+<0> while           { keyword KwWhile }
+<0> for             { keyword KwFor }
+<0> to              { keyword KwTo }
+<0> break           { keyword KwBreak }
+<0> let             { keyword KwLet }
+<0> in              { keyword KwIn }
+<0> end             { keyword KwEnd }
+<0> function        { keyword KwFunction }
+<0> var             { keyword KwVar }
+<0> type            { keyword KwType }
+<0> array           { keyword KwArray }
+<0> if              { keyword KwIf }
+<0> then            { keyword KwThen }
+<0> else            { keyword KwElse }
+<0> do              { keyword KwDo }
+<0> of              { keyword KwOf }
+<0> nil             { keyword KwNil }
 
-    \,                                      { \pos _ -> TkComma pos }
-    \:                                      { \pos _ -> TkColon pos }
-    \;                                      { \pos _ -> TkSemicolon pos }
-    \(                                      { \pos _ -> TkLParen pos }
-    \)                                      { \pos _ -> TkRParen pos }
-    \[                                      { \pos _ -> TkLBrack pos }
-    \]                                      { \pos _ -> TkRBrack pos }
-    \{                                      { \pos _ -> TkLBrace pos }
-    \}                                      { \pos _ -> TkRBrace pos }
-    \.                                      { \pos _ -> TkDot pos }
-    \+                                      { \pos _ -> TkPlus pos }
-    \-                                      { \pos _ -> TkMinus pos }
-    \*                                      { \pos _ -> TkTimes pos }
-    \/                                      { \pos _ -> TkDevide pos }
-    \=                                      { \pos _ -> TkEQ pos }
-    \<\>                                    { \pos _ -> TkNEQ pos }
-    \<                                      { \pos _ -> TkLT pos }
-    \<=                                     { \pos _ -> TkLE pos }
-    \>                                      { \pos _ -> TkGT pos }
-    \>=                                     { \pos _ -> TkGE pos }
-    \&                                      { \pos _ -> TkAnd pos }
-    \|                                      { \pos _ -> TkOr pos }
-    \:=                                     { \pos _ -> TkAssign pos }
+<0> \,              { symbol SymComma }
+<0> \:              { symbol SymColon }
+<0> \;              { symbol SymSemi }
+<0> \(              { symbol SymLParen }
+<0> \)              { symbol SymRParen }
+<0> \[              { symbol SymLBrack }
+<0> \]              { symbol SymRBrack }
+<0> \{              { symbol SymLBrace }
+<0> \}              { symbol SymRBrace }
+<0> \.              { symbol SymDot }
+<0> \+              { symbol SymPlus }
+<0> \-              { symbol SymMinus }
+<0> \*              { symbol SymTimes }
+<0> \/              { symbol SymDevide }
+<0> \=              { symbol SymEq }
+<0> \<\>            { symbol SymNeq }
+<0> \<              { symbol SymLt }
+<0> \<=             { symbol SymLe }
+<0> \>              { symbol SymGt }
+<0> \>=             { symbol SymGe }
+<0> \&              { symbol SymAnd }
+<0> \|              { symbol SymOr }
+<0> \:=             { symbol SymAssign }
 
-    @id		                                { \pos s -> TkId (s, pos) }
-    $digit+                                 { \pos s -> TkInt ((read s), pos) }
-    @string                                 { \pos s -> TkString (unquot s, pos) }
+<0> @id             { ident }
+<0> $digit+         { int }
+<0> @string         { string }
 
 {
-unquot :: String -> String
-unquot s = init (tail s)
+lexer :: (Token -> Alex a) -> Alex a
+lexer = (alexMonadScan >>=)
+
+type Action = AlexInput -> Int -> Alex Token
 
 data Token
-    = TkWhile AlexPosn
-    | TkFor AlexPosn
-    | TkTo AlexPosn
-    | TkBreak AlexPosn
-    | TkLet AlexPosn
-    | TkIn AlexPosn
-    | TkEnd AlexPosn
-    | TkFunction AlexPosn
-    | TkVar AlexPosn
-    | TkType AlexPosn
-    | TkArray AlexPosn
-    | TkIf AlexPosn
-    | TkThen AlexPosn
-    | TkElse AlexPosn
-    | TkDo AlexPosn
-    | TkOf AlexPosn
-    | TkNil AlexPosn
-
-    | TkComma AlexPosn
-    | TkColon AlexPosn
-    | TkSemicolon AlexPosn
-    | TkLParen AlexPosn
-    | TkRParen AlexPosn
-    | TkLBrack AlexPosn
-    | TkRBrack AlexPosn
-    | TkLBrace AlexPosn
-    | TkRBrace AlexPosn
-    | TkDot AlexPosn
-    | TkPlus AlexPosn
-    | TkMinus AlexPosn
-    | TkTimes AlexPosn
-    | TkDevide AlexPosn
-    | TkEQ AlexPosn
-    | TkNEQ AlexPosn
-    | TkLT AlexPosn
-    | TkLE AlexPosn
-    | TkGT AlexPosn
-    | TkGE AlexPosn
-    | TkAnd AlexPosn
-    | TkOr AlexPosn
-    | TkAssign AlexPosn
-    
-    | TkId (String, AlexPosn)
-    | TkInt (Integer, AlexPosn)
-    | TkString (String, AlexPosn)
+    = TokKeyword (Keyword, AlexPosn)
+    | TokSymbol (Symbol, AlexPosn)
+    | TokId (String, AlexPosn)
+    | TokInt (Integer, AlexPosn)
+    | TokString (String, AlexPosn)
+    | TokEof
     deriving (Eq, Show)
 
-showPos (AlexPn _ l c) = " at " ++ show (l, c)
+keyword :: Keyword -> Action
+keyword key = \(pos,_,_,_) _ -> return $ TokKeyword (key, pos)
 
-showToken :: Token -> String
-showToken (TkWhile p) = "\'while\'" ++ showPos p
-showToken (TkFor p) = "\'for\'" ++ showPos p
-showToken (TkTo p) = "\'to\'" ++ showPos p
-showToken (TkBreak p) = "\'break\'" ++ showPos p
-showToken (TkLet p) = "\'let\'" ++ showPos p
-showToken (TkIn p) = "\'in\'" ++ showPos p
-showToken (TkEnd p) = "\'end\'" ++ showPos p
-showToken (TkFunction p) = "\'function\'" ++ showPos p
-showToken (TkVar p) = "\'var\'" ++ showPos p
-showToken (TkType p) = "\'type\'" ++ showPos p
-showToken (TkArray p) = "\'array\'" ++ showPos p
-showToken (TkIf p) = "\'if\'" ++ showPos p
-showToken (TkThen p) = "\'then\'" ++ showPos p
-showToken (TkElse p) = "\'else\'" ++ showPos p
-showToken (TkDo p) = "\'do\'" ++ showPos p
-showToken (TkOf p) = "\'of\'" ++ showPos p
-showToken (TkNil p) = "\'nil\'" ++ showPos p
-showToken (TkComma p) = "\',\'" ++ showPos p
-showToken (TkColon p) = "\':\'" ++ showPos p
-showToken (TkSemicolon p) = "\';\'" ++ showPos p
-showToken (TkLParen p) = "\'(\'" ++ showPos p
-showToken (TkRParen p) = "\')\'" ++ showPos p
-showToken (TkLBrack p) = "\'[\'" ++ showPos p
-showToken (TkRBrack p) = "\']\'" ++ showPos p
-showToken (TkLBrace p) = "\'{\'" ++ showPos p
-showToken (TkRBrace p) = "\'}\'" ++ showPos p
-showToken (TkDot p) = "\'.\'" ++ showPos p
-showToken (TkPlus p) = "\'+\'" ++ showPos p
-showToken (TkMinus p) = "\'-\'" ++ showPos p
-showToken (TkTimes p) = "\'*\'" ++ showPos p
-showToken (TkDevide p) = "\'/\'" ++ showPos p
-showToken (TkEQ p) = "\'=\'" ++ showPos p
-showToken (TkNEQ p) = "\'<>\'" ++ showPos p
-showToken (TkLT p) = "\'<\'" ++ showPos p
-showToken (TkLE p) = "\'<=\'" ++ showPos p
-showToken (TkGT p) = "\'>\'" ++ showPos p
-showToken (TkGE p) = "\'>=\'" ++ showPos p
-showToken (TkAnd p) = "\'&\'" ++ showPos p
-showToken (TkOr p) = "\'|\'" ++ showPos p
-showToken (TkAssign p) = "\':=\'" ++ showPos p
-showToken (TkId (s, p)) = "Id: " ++ s ++ showPos p
-showToken (TkInt (i, p)) = show i ++ showPos p
-showToken (TkString (s, p)) = s ++ showPos p
+symbol :: Symbol -> Action
+symbol sym = \(pos,_,_,_) _ -> return $ TokSymbol (sym, pos)
+
+ident :: Action
+ident = \(pos,_,_,str) len -> return $ TokId (take len str, pos)
+
+int :: Action
+int = \(pos,_,_,str) len -> return $ TokInt (read $ take len str, pos)
+
+string :: Action
+string = \(pos,_,_,str) len -> return $ TokString (unquot $ take len str, pos)
+    where
+        unquot :: String -> String
+        unquot s = init (tail s)
+
+alexEOF :: Alex Token
+alexEOF = return TokEof
+
+data AlexUserState = AlexUserState {}
+
+alexInitUserState :: AlexUserState
+alexInitUserState = AlexUserState {}
 }

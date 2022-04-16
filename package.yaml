@@ -9,12 +9,6 @@ copyright:           "2022 ksrk"
 extra-source-files:
 - README.md
 - ChangeLog.md
-- src/Lexer.x
-- src/Parser.y
-
-build-tools:
-- alex
-- happy
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -29,9 +23,7 @@ dependencies:
 - base >= 4.7 && < 5
 - array
 - containers
-- hspec          # [Optional] for running 'stack test'. 
-- haskeline      # [Optional] for REPL.
-- transformers   # [Optional] for REPL.
+- hspec          # [Optional] for running 'stack test'.
 
 library:
   source-dirs: src
