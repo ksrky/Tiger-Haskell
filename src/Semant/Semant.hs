@@ -33,8 +33,8 @@ match lty rty tenv pos = do
                 T.NAME _ (Just sym) -> case S.look tenv sym of
                         Just ty' -> actualTy ty'
                         Nothing -> Err.returnErr "" (Err.ErrTypeNotFound sym) pos
-                T.ARRAY ty' -> T.ARRAY <$> actualTy ty'
-                T.RECORD fields -> T.RECORD . zip (map fst fields) <$> mapM (actualTy . snd) fields
+                T.ARRAY sym ty' -> T.ARRAY sym <$> actualTy ty'
+                T.RECORD sym fields -> T.RECORD sym . zip (map fst fields) <$> mapM (actualTy . snd) fields
                 _ -> return ty
 
 transVar :: SemantState -> A.Var -> Either Err.Error ExpTy
@@ -48,14 +48,14 @@ transVar st@(SS venv tenv) = trvar
         trvar (A.FieldVar v id pos) = do
                 ty <- ty <$> trvar v
                 case ty of
-                        T.RECORD fs -> case lookup id fs of
+                        T.RECORD _ fs -> case lookup id fs of
                                 Nothing -> Err.returnErr ("field not found: " ++ id) Err.Err pos
                                 Just ty' -> return $ ExpTy () ty'
                         _ -> Err.returnErr (show v ++ " is not a record") Err.ErrWrongType pos
         trvar (A.SubscriptVar v exp pos) = do
                 t <- ty <$> trvar v
                 case t of
-                        T.ARRAY ty' -> do
+                        T.ARRAY _ ty' -> do
                                 ty'' <- ty <$> transExp st exp
                                 match T.INT ty'' tenv pos
                                 return $ ExpTy () ty'
@@ -111,7 +111,7 @@ transExp st@(SS venv tenv) = trexp
                                 T.NAME _ (Just sym) -> case S.look tenv sym of
                                         Just ty' -> isRecord ty' -- warning: recursive
                                         Nothing -> Err.returnErr "" (Err.ErrTypeNotFound sym) pos
-                                T.RECORD fields -> return fields
+                                T.RECORD _ fields -> return fields
                                 _ -> Err.returnErr "" (Err.ErrTypeMismatch "RECORD" (show ty)) pos
                         checkrecord :: [(A.Symbol, (A.Exp, A.Pos))] -> [(S.Symbol, T.Ty)] -> Either Err.Error ()
                         checkrecord _ [] = return ()
@@ -174,7 +174,7 @@ transExp st@(SS venv tenv) = trexp
                         T.NAME _ (Just sym) -> case S.look tenv sym of
                                 Just ty' -> isArray ty' -- warning: recursive
                                 Nothing -> Err.returnErr "" (Err.ErrTypeNotFound sym) pos
-                        T.ARRAY ty' -> return ty'
+                        T.ARRAY _ ty' -> return ty'
                         _ -> Err.returnErr "" (Err.ErrTypeMismatch "ARRAY" (show ty)) pos
 
         getTy :: A.Exp -> Either Err.Error T.Ty
@@ -237,7 +237,7 @@ transDecs decs = evalStateT $ do
                 transty' header st@(SS _ tenv) = case header of
                         [] -> return ((), st)
                         (name, ty) : rh -> do
-                                ty' <- transTy ty tenv
+                                ty' <- transTy name ty tenv
                                 let tenv' = S.enter tenv name ty'
                                 transty' rh st{tenv = tenv'}
         transfun :: VHeader -> StateT SemantState (Either Err.Error) ()
@@ -280,19 +280,19 @@ transDecs decs = evalStateT $ do
         returnState :: StateT SemantState (Either Err.Error) SemantState
         returnState = StateT $ \st -> return (st, st)
 
-transTy :: A.Ty -> TEnv -> Either Err.Error T.Ty
-transTy (A.NameTy typ pos) = \tenv -> case S.look tenv typ of
+transTy :: A.Symbol -> A.Ty -> TEnv -> Either Err.Error T.Ty
+transTy name (A.NameTy typ pos) tenv = case S.look tenv typ of
         Just ty -> return ty
         Nothing -> Err.returnErr "" (Err.ErrTypeNotFound typ) pos
-transTy (A.RecordTy fields) = \tenv -> do
+transTy name (A.RecordTy fields) tenv = do
         let transfield :: A.Field -> Either Err.Error (S.Symbol, T.Ty)
             transfield (A.Field name _ typ pos) = case S.look tenv typ of
                 Just ty -> return (name, ty)
                 Nothing -> Err.returnErr "" (Err.ErrTypeNotFound typ) pos
         fs_ty <- mapM transfield fields
-        return $ T.RECORD fs_ty
-transTy (A.ArrayTy typ pos) = \tenv -> case S.look tenv typ of
-        Just ty -> return $ T.ARRAY ty
+        return $ T.RECORD name fs_ty
+transTy name (A.ArrayTy typ pos) tenv = case S.look tenv typ of
+        Just ty -> return $ T.ARRAY name ty
         Nothing -> Err.returnErr "" (Err.ErrTypeNotFound typ) pos
 
 transProg :: A.Exp -> Either Err.Error ()

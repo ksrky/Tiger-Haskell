@@ -72,6 +72,7 @@ test-suite tiger-test
   main-is: Spec.hs
   other-modules:
       ParserSpec
+      SemantSpec
       Paths_tiger
   hs-source-dirs:
       test
