@@ -1,4 +1,4 @@
-module Token where
+module Syntax.Token where
 
 data Keyword
         = KwWhile

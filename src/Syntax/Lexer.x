@@ -1,7 +1,7 @@
 {
-module Lexer where
+module Syntax.Lexer where
 
-import Token
+import Syntax.Token
 }
 
 %wrapper "monadUserState"

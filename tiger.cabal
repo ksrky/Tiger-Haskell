@@ -25,10 +25,16 @@ source-repository head
 
 library
   exposed-modules:
-      Absyn
-      Lexer
-      Parser
-      Token
+      Error.Error
+      Semant.Env
+      Semant.Semant
+      Semant.Symbol
+      Semant.Types
+      Syntax.Absyn
+      Syntax.Absyn.Utils
+      Syntax.Lexer
+      Syntax.Parser
+      Syntax.Token
   other-modules:
       Paths_tiger
   hs-source-dirs:
@@ -40,6 +46,7 @@ library
     , base >=4.7 && <5
     , containers
     , hspec
+    , mtl
   default-language: Haskell2010
 
 executable tiger-exe
@@ -56,6 +63,7 @@ executable tiger-exe
     , base >=4.7 && <5
     , containers
     , hspec
+    , mtl
     , tiger
   default-language: Haskell2010
 
@@ -75,5 +83,6 @@ test-suite tiger-test
     , base >=4.7 && <5
     , containers
     , hspec
+    , mtl
     , tiger
   default-language: Haskell2010

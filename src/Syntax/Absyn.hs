@@ -1,4 +1,4 @@
-module Absyn where
+module Syntax.Absyn where
 
 type Pos = (Int, Int)
 type Symbol = String

@@ -1,7 +1,7 @@
 module ParserSpec where
 
-import Lexer
-import Parser
+import Syntax.Lexer
+import Syntax.Parser
 
 import System.IO (
         IOMode (ReadMode),

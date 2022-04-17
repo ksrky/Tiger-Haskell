@@ -1,9 +1,9 @@
 {
-module Parser where
+module Syntax.Parser where
 
-import Token
-import Lexer
-import qualified Absyn as A
+import Syntax.Token
+import Syntax.Lexer
+import qualified Syntax.Absyn as A
 }
 
 %name parse
