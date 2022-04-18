@@ -51,7 +51,7 @@ transVar st@(SS venv tenv) = trvar
                         T.RECORD _ fs -> case lookup sym fs of
                                 Nothing -> Err.returnErr_ (Err.RecordFieldNotFound sym) pos
                                 Just ty' -> return $ ExpTy () ty'
-                        _ -> Err.returnErr_ (Err.WrongType "RECORD" (show v)) pos
+                        _ -> Err.returnErr_ (Err.WrongType "record type" (show ty)) pos
         trvar (A.SubscriptVar v exp pos) = do
                 t <- ty <$> trvar v
                 case t of
@@ -59,7 +59,7 @@ transVar st@(SS venv tenv) = trvar
                                 ty'' <- ty <$> transExp st exp
                                 match T.INT ty'' tenv pos
                                 return $ ExpTy () ty'
-                        _ -> Err.returnErr_ (Err.WrongType "ARRAY" (show v)) pos
+                        _ -> Err.returnErr_ (Err.WrongType "array type" (show v)) pos
 
 transExp :: SemantState -> A.Exp -> Either Err.Error ExpTy
 transExp st@(SS venv tenv) = trexp
@@ -96,9 +96,11 @@ transExp st@(SS venv tenv) = trexp
                                 A.Order -> True
                                 A.Equal -> True
                                 _ -> False
-                        _ -> False
+                        (t, t') -> case A.opkind op of
+                                A.Equal | t == t' -> True
+                                _ -> False
                         then return $ ExpTy () T.INT
-                        else Err.returnErr_ (Err.InvalidComparison (show lty) (show rty)) pos
+                        else Err.returnErr_ (Err.InvalidComparison (show lty) (show rty) (show op)) pos
         trexp (A.RecordExp fields typ pos) = case S.look tenv typ of
                 Nothing -> Err.returnErr_ (Err.TypeNotFound typ) pos
                 Just ty' -> do
@@ -112,7 +114,7 @@ transExp st@(SS venv tenv) = trexp
                                         Just ty' -> isRecord ty' -- warning: recursive
                                         Nothing -> Err.returnErr_ (Err.TypeNotFound sym) pos
                                 T.RECORD _ fields -> return fields
-                                _ -> Err.returnErr_ (Err.WrongType "RECORD" (show ty)) pos
+                                _ -> Err.returnErr_ (Err.WrongType "record type" (show ty)) pos
                         checkrecord :: [(A.Symbol, (A.Exp, A.Pos))] -> [(S.Symbol, T.Ty)] -> Either Err.Error ()
                         checkrecord _ [] = return ()
                         checkrecord fs ((s, t) : sts) = case lookup s fs of
@@ -175,7 +177,7 @@ transExp st@(SS venv tenv) = trexp
                                 Just ty' -> isArray ty' -- warning: recursive
                                 Nothing -> Err.returnErr_ (Err.TypeNotFound sym) pos
                         T.ARRAY _ ty' -> return ty'
-                        _ -> Err.returnErr_ (Err.WrongType "ARRAY" (show ty)) pos
+                        _ -> Err.returnErr_ (Err.WrongType "array type" (show ty)) pos
 
         getTy :: A.Exp -> Either Err.Error T.Ty
         getTy exp = ty <$> trexp exp
