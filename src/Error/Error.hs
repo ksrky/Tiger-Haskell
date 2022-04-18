@@ -34,3 +34,6 @@ instance Show ErrorKind where
 
 returnErr :: String -> ErrorKind -> A.Pos -> Either Error a
 returnErr s k p = Left $ Error s k p
+
+returnErr_ :: ErrorKind -> A.Pos -> Either Error a
+returnErr_ = returnErr ""
