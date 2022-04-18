@@ -30,9 +30,9 @@ match lty rty tenv pos = do
     where
         actualTy :: T.Ty -> Either Err.Error T.Ty
         actualTy ty = case ty of
-                T.NAME _ (Just sym) -> case S.look tenv sym of
+                T.NAME name -> case S.look tenv name of
                         Just ty' -> actualTy ty'
-                        Nothing -> Err.returnErr_ (Err.TypeNotFound sym) pos
+                        Nothing -> Err.returnErr "" (Err.TypeNotFound name) pos
                 T.ARRAY sym ty' -> T.ARRAY sym <$> actualTy ty'
                 T.RECORD sym fields -> T.RECORD sym . zip (map fst fields) <$> mapM (actualTy . snd) fields
                 _ -> return ty
@@ -110,9 +110,9 @@ transExp st@(SS venv tenv) = trexp
                     where
                         isRecord :: T.Ty -> Either Err.Error [(S.Symbol, T.Ty)]
                         isRecord ty = case ty of
-                                T.NAME _ (Just sym) -> case S.look tenv sym of
+                                T.NAME name -> case S.look tenv name of
                                         Just ty' -> isRecord ty' -- warning: recursive
-                                        Nothing -> Err.returnErr_ (Err.TypeNotFound sym) pos
+                                        Nothing -> Err.returnErr_ (Err.TypeNotFound name) pos
                                 T.RECORD _ fields -> return fields
                                 _ -> Err.returnErr_ (Err.WrongType "record type" (show ty)) pos
                         checkrecord :: [(A.Symbol, (A.Exp, A.Pos))] -> [(S.Symbol, T.Ty)] -> Either Err.Error ()
@@ -173,30 +173,34 @@ transExp st@(SS venv tenv) = trexp
             where
                 isArray :: T.Ty -> Either Err.Error T.Ty
                 isArray ty = case ty of
-                        T.NAME _ (Just sym) -> case S.look tenv sym of
+                        T.NAME name -> case S.look tenv name of
                                 Just ty' -> isArray ty' -- warning: recursive
-                                Nothing -> Err.returnErr_ (Err.TypeNotFound sym) pos
+                                Nothing -> Err.returnErr_ (Err.TypeNotFound name) pos
                         T.ARRAY _ ty' -> return ty'
                         _ -> Err.returnErr_ (Err.WrongType "array type" (show ty)) pos
 
         getTy :: A.Exp -> Either Err.Error T.Ty
         getTy exp = ty <$> trexp exp
 
+type TypeDec = (A.Symbol, A.Ty, A.Pos)
+type FunDec = (S.Symbol, [(S.Symbol, T.Ty, Bool)], T.Ty, A.Exp, A.Pos)
+
 transDecs :: [A.Dec] -> SemantState -> Either Err.Error SemantState
 transDecs decs = execStateT $ do
-        mapM_ transTypeDec decs
-        mapM_ transFunDec decs
+        typedecs <- concat <$> mapM regisTypeDec decs
+        fundecs <- concat <$> mapM regisFunDec decs
+        mapM_ transTypeDec typedecs
+        mapM_ transFunDec fundecs
         mapM_ transVarDec decs
     where
-        transTypeDec :: A.Dec -> StateT SemantState (Either Err.Error) ()
-        transTypeDec (A.TypeDec name ty pos) = StateT $ \st@(SS venv tenv) -> do
+        regisTypeDec :: A.Dec -> StateT SemantState (Either Err.Error) [TypeDec]
+        regisTypeDec (A.TypeDec name ty pos) = StateT $ \st@(SS venv tenv) -> do
                 when (isJust $ S.look tenv name) (Err.returnErr_ (Err.MultipleDeclarations name) pos)
-                ty' <- transTy name ty tenv
-                let tenv' = S.enter tenv name ty'
-                return ((), st{tenv = tenv'})
-        transTypeDec _ = return ()
-        transFunDec :: A.Dec -> StateT SemantState (Either Err.Error) ()
-        transFunDec (A.FunDec name params result body pos) = StateT $ \st@(SS venv tenv) -> do
+                let tenv' = S.enter tenv name (T.Ref ty) --tmp
+                return ([(name, ty, pos)], st{tenv = tenv'})
+        regisTypeDec _ = return []
+        regisFunDec :: A.Dec -> StateT SemantState (Either Err.Error) [FunDec]
+        regisFunDec (A.FunDec name params result body pos) = StateT $ \st@(SS venv tenv) -> do
                 when (isJust $ S.look venv name) (Err.returnErr_ (Err.MultipleDeclarations name) pos)
                 let resultTy :: Maybe (S.Symbol, A.Pos) -> Either Err.Error T.Ty
                     resultTy result = case result of
@@ -206,23 +210,31 @@ transDecs decs = execStateT $ do
                         Nothing -> return T.UNIT
                     transparam :: A.Field -> Either Err.Error (S.Symbol, T.Ty, Bool)
                     transparam (A.Field name esc typ pos) = case S.look tenv typ of
-                        Just t -> return (name, t, esc)
+                        Just ty -> return (name, ty, esc)
                         Nothing -> Err.returnErr_ (Err.TypeNotFound typ) pos
-                    enterparam :: (S.Symbol, T.Ty, Bool) -> State SemantState ()
+                params' <- mapM transparam params
+                result_ty <- resultTy result
+                let fun = E.FunEntry (map (\(_, x, _) -> x) params') result_ty
+                    venv' = S.enter venv name fun
+                return ([(name, params', result_ty, body, pos)], st{venv = venv'})
+        regisFunDec _ = return []
+        transTypeDec :: TypeDec -> StateT SemantState (Either Err.Error) ()
+        transTypeDec (name, ty, pos) = StateT $ \st@(SS venv tenv) -> do
+                ty' <- transTy [] (name, pos) tenv
+                let tenv' = S.enter tenv name ty'
+                return ((), st{tenv = tenv'})
+        transFunDec :: FunDec -> StateT SemantState (Either Err.Error) ()
+        transFunDec (name, params', result_ty, body, pos) = StateT $ \st@(SS venv tenv) -> do
+                let enterparam :: (S.Symbol, T.Ty, Bool) -> State SemantState ()
                     enterparam (name, ty, esc) = do
                         st@(SS venv _) <- get
                         let venv' = S.enter venv name (E.VarEntry ty)
                         put st{venv = venv'}
                         return ()
-                params' <- mapM transparam params
-                result_ty <- resultTy result
-                let fun = E.FunEntry (map (\(_, x, _) -> x) params') result_ty
-                    venv' = S.enter venv name fun
-                    st' = execState (mapM enterparam params') st{venv = venv'}
+                    st' = execState (mapM enterparam params') st
                 ty <- ty <$> transExp st' body
                 match result_ty ty tenv pos
-                return ((), st{venv = venv'})
-        transFunDec _ = return ()
+                return ((), st)
         transVarDec :: A.Dec -> StateT SemantState (Either Err.Error) ()
         transVarDec (A.VarDec name esc mtyp init pos) = StateT $ \st@(SS venv tenv) -> case mtyp of
                 Just (typ, p) -> case S.look tenv typ of
@@ -238,21 +250,64 @@ transDecs decs = execStateT $ do
                         return ((), st{venv = venv'})
         transVarDec _ = return ()
 
+transTy :: [A.Symbol] -> (A.Symbol, A.Pos) -> TEnv -> Either Err.Error T.Ty
+transTy checked (name, pos) = evalStateT followty
+    where
+        followty :: StateT TEnv (Either Err.Error) T.Ty
+        followty = StateT $ \tenv -> case S.look tenv name of
+                Just (T.Ref (A.NameTy typ p)) -> do
+                        when (typ `elem` checked) (Err.returnErr "" (Err.CyclicDefinition typ) pos)
+                        ty <- transTy (checked ++ [name]) (typ, p) tenv
+                        return (ty, S.enter tenv typ ty)
+                Just (T.Ref (A.RecordTy fields)) -> do
+                        let tenv' = S.enter tenv name (T.NAME name)
+                            transfield :: A.Field -> Either Err.Error (S.Symbol, T.Ty)
+                            transfield (A.Field name _ typ p) = do
+                                ty <- transTy [] (typ, p) tenv'
+                                return (name, ty)
+                        fs_ty <- mapM transfield fields
+                        return (T.RECORD name fs_ty, tenv')
+                Just (T.Ref (A.ArrayTy typ p)) -> do
+                        let tenv' = S.enter tenv name (T.NAME name)
+                        ty <- transTy [] (typ, p) tenv'
+                        return (T.ARRAY name ty, tenv')
+                Just ty -> return (ty, tenv)
+                _ -> Err.returnErr_ (Err.TypeNotFound name) pos
+
+{-}
 transTy :: A.Symbol -> A.Ty -> TEnv -> Either Err.Error T.Ty
-transTy name (A.NameTy typ pos) tenv = case S.look tenv typ of
-        Just ty -> return ty
-        Nothing -> Err.returnErr_ (Err.TypeNotFound typ) pos
-transTy name (A.RecordTy fields) tenv = do
+transTy name (A.NameTy typ pos) = evalStateT followty
+    where
+        followty :: StateT TEnv (Either Err.Error) T.Ty
+        followty = StateT $ \tenv -> case S.look tenv typ of
+                Just ty -> followty' [] ty tenv
+                Nothing -> Err.returnErr "" (Err.TypeNotFound typ) pos
+            where
+                followty' :: [A.Symbol] -> T.Ty -> TEnv -> Either Err.Error (T.Ty, TEnv)
+                followty' checked (T.Ref aty) tenv = do
+                        case aty of
+                                A.NameTy sym _ -> do
+                                        when (sym `elem` checked) (Err.returnErr "" (Err.CyclicDefinition (show aty)) pos)
+                                        case S.look tenv sym of
+                                                Nothing -> Err.returnErr "" (Err.TypeNotFound sym) pos
+                                                Just ty -> do
+                                                        (ty', tenv') <- followty' (checked ++ [sym]) ty tenv
+                                                        return (ty', S.enter tenv' sym ty')
+                                _ -> do
+                                        ty <- transTy typ aty tenv
+                                        return (ty, tenv)
+                followty' checked ty tenv = return (ty, tenv)
+transTy name (A.RecordTy fields) = \tenv -> do
         let transfield :: A.Field -> Either Err.Error (S.Symbol, T.Ty)
             transfield (A.Field name _ typ pos) = case S.look tenv typ of
                 Just ty -> return (name, ty)
                 Nothing -> Err.returnErr_ (Err.TypeNotFound typ) pos
         fs_ty <- mapM transfield fields
         return $ T.RECORD name fs_ty
-transTy name (A.ArrayTy typ pos) tenv = case S.look tenv typ of
+transTy name (A.ArrayTy typ pos) = \tenv -> case S.look tenv typ of
         Just ty -> return $ T.ARRAY name ty
         Nothing -> Err.returnErr_ (Err.TypeNotFound typ) pos
-
+-}
 transProg :: A.Exp -> Either Err.Error ()
 transProg exp = do
         transExp (SS E.baseVEnv E.baseTEnv) exp

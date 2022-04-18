@@ -11,7 +11,7 @@ type BaseTEnv = S.Table T.Ty
 type BaseVEnv = S.Table EnvEntry
 
 baseTEnv :: BaseTEnv
-baseTEnv = S.new [("int", T.INT), ("string", T.STRING)]
+baseTEnv = S.new [("int", T.INT), ("string", T.STRING), ("nil", T.NIL)]
 
 baseVEnv :: BaseVEnv
 baseVEnv = S.new $ map funentry reserved

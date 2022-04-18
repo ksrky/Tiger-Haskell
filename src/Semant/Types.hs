@@ -1,6 +1,7 @@
 module Semant.Types where
 
 import Semant.Symbol (Symbol)
+import qualified Syntax.Absyn as Absyn
 
 data Ty
         = INT
@@ -9,7 +10,8 @@ data Ty
         | ARRAY Symbol Ty
         | NIL
         | UNIT
-        | NAME {name :: Symbol, typ :: Maybe Symbol}
+        | NAME Symbol
+        | Ref Absyn.Ty
         deriving (Eq)
 
 instance Show Ty where
@@ -19,7 +21,8 @@ instance Show Ty where
         show (ARRAY sym ty) = sym ++ "[" ++ show ty ++ "]"
         show NIL = "nil"
         show UNIT = "unit"
-        show (NAME name mtyp) = name
+        show (NAME name) = name
+        show (Ref sym) = undefined
 
 showField :: [(Symbol, Ty)] -> String
 showField [] = ""
