@@ -8,27 +8,29 @@ instance Show Error where
         show (Error msg kind pos) = show kind ++ msg ++ " at " ++ show pos
 
 data ErrorKind
-        = ErrUnknownIdentifier {ident :: String}
-        | ErrTypeMismatch {expected :: String, got :: String}
-        | ErrTypeNotFound {typ :: String}
-        | ErrSizeMismatch
-        | ErrWrongType
-        | ErrCyclicDefinition {typ :: String}
-        | ErrImperfectDefinition {typ :: String}
-        | ErrMultipleDeclarations {name :: String}
-        | Err
+        = UnknownIdentifier {ident :: String}
+        | TypeMismatch {expected :: String, got :: String}
+        | TypeNotFound {typ :: String}
+        | SizeMismatch
+        | WrongType {expected :: String, got :: String}
+        | CyclicDefinition {typ :: String}
+        | ImperfectDefinition {typ :: String}
+        | MultipleDeclarations {name :: String}
+        | RecordFieldNotFound {name :: String}
+        | InvalidComparison {ltyp :: String, rtyp :: String}
         deriving (Eq)
 
 instance Show ErrorKind where
-        show (ErrUnknownIdentifier ident) = "unknown identifier: " ++ ident
-        show (ErrTypeMismatch expected got) = "type mismatch: expected " ++ expected ++ ", but got " ++ got
-        show (ErrTypeNotFound typ) = "type not found: " ++ typ
-        show ErrSizeMismatch = ""
-        show ErrWrongType = ""
-        show (ErrCyclicDefinition typ) = "recursive types interupted: " ++ typ
-        show (ErrImperfectDefinition typ) = "imperfect type definition: " ++ typ
-        show (ErrMultipleDeclarations name) = "multiple declarations: " ++ name
-        show Err = ""
+        show (UnknownIdentifier ident) = "unknown identifier: " ++ ident
+        show (TypeMismatch expected got) = "type mismatch: expected " ++ expected ++ ", but got " ++ got
+        show (TypeNotFound typ) = "type not found: " ++ typ
+        show SizeMismatch = ""
+        show (WrongType expected got) = "wrong type: expected " ++ expected ++ ", but got " ++ got
+        show (CyclicDefinition typ) = "recursive types interupted: " ++ typ
+        show (ImperfectDefinition typ) = "imperfect type definition: " ++ typ
+        show (MultipleDeclarations name) = "multiple declarations: " ++ name
+        show (RecordFieldNotFound name) = "field not found: " ++ name
+        show (InvalidComparison ltyp rtyp) = "comparison of incompatible types: " ++ ltyp ++ " and " ++ rtyp
 
 returnErr :: String -> ErrorKind -> A.Pos -> Either Error a
 returnErr s k p = Left $ Error s k p
