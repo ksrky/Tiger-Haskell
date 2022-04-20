@@ -29,6 +29,7 @@ library
       Frame.Frame
       Frame.X64Frame
       Semant.Env
+      Semant.FindEscape
       Semant.Semant
       Semant.Symbol
       Semant.Translate
