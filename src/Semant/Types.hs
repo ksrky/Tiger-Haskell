@@ -3,24 +3,28 @@ module Semant.Types where
 import Semant.Symbol (Symbol)
 import qualified Syntax.Absyn as Absyn
 
-data TyCon = INT | STRING | NIL | UNIT | NAME Symbol deriving (Eq, Show)
-
 data Ty
-        = TCon TyCon
+        = INT
+        | STRING
         | RECORD Symbol [(Symbol, Ty)]
         | ARRAY Symbol Ty
-        | Ref Absyn.Ty
+        | NIL
+        | UNIT
+        | NAME Symbol
+        | Ref Symbol -- ref type of record and array
+        | Temp Absyn.Ty
         deriving (Eq)
 
 instance Show Ty where
-        show (TCon INT) = "int"
-        show (TCon STRING) = "string"
+        show INT = "int"
+        show STRING = "string"
         show (RECORD sym field) = sym ++ "{" ++ showField field ++ "}"
         show (ARRAY sym ty) = sym ++ "[" ++ show ty ++ "]"
-        show (TCon NIL) = "nil"
-        show (TCon UNIT) = "unit"
-        show (TCon (NAME name)) = name
-        show (Ref sym) = "ref fail"
+        show NIL = "nil"
+        show UNIT = "unit"
+        show (NAME name) = name
+        show (Ref name) = name
+        show (Temp _) = undefined
 
 showField :: [(Symbol, Ty)] -> String
 showField [] = ""

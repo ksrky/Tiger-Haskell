@@ -11,13 +11,13 @@ type BaseTEnv = S.Table T.Ty
 type BaseVEnv = S.Table EnvEntry
 
 baseTEnv :: BaseTEnv
-baseTEnv = S.new [("int", T.TCon T.INT), ("string", T.TCon T.STRING), ("nil", T.TCon T.NIL)]
+baseTEnv = S.new [("int", T.INT), ("string", T.STRING), ("nil", T.NIL)]
 
 baseVEnv :: BaseVEnv
 baseVEnv = S.new $ map funentry reserved
     where
-        funentry :: (S.Symbol, [T.TyCon], T.TyCon) -> (String, EnvEntry)
-        funentry (name, fmls, res) = (name, FunEntry (map T.TCon fmls) (T.TCon res))
+        funentry :: (S.Symbol, [T.Ty], T.Ty) -> (String, EnvEntry)
+        funentry (name, fmls, res) = (name, FunEntry fmls res)
         reserved =
                 [ ("print", [T.STRING], T.UNIT)
                 , ("flush", [], T.UNIT)

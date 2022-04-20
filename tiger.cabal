@@ -30,7 +30,6 @@ library
       Semant.Semant
       Semant.Symbol
       Semant.Types
-      Semant.Types.Utils
       Syntax.Absyn
       Syntax.Absyn.Utils
       Syntax.Lexer
