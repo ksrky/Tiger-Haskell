@@ -1,12 +1,27 @@
 module ParserSpec where
 
-import Absyn
-import Lexer (alexScanTokens)
-import Parser (parse)
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Syntax.Lexer
+import Syntax.Parser
+
+import System.IO (
+        IOMode (ReadMode),
+        hClose,
+        hGetContents,
+        openFile,
+ )
+import Test.Hspec (Spec, SpecWith, describe, it)
+
+loop :: [Int] -> SpecWith ()
+loop [] = return ()
+loop (n : ns) = do
+        let filename = "test" ++ show n
+        it filename $ do
+                inhandle <- openFile ("testcases/" ++ filename ++ ".tig") ReadMode
+                inp <- hGetContents inhandle
+                print $ runAlex inp parse
+        loop ns
 
 spec :: Spec
 spec = do
-        describe "" $
-                it "1+2" $
-                        parse (alexScanTokens "1+2") `shouldBe` OpExp{leftExp = IntExp 1, operExp = PlusOp, rightExp = IntExp 2, posExp = (1, 2)}
+        describe "file test" $ do
+                loop [1 .. 49]

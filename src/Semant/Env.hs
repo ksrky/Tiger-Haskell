@@ -1,26 +1,26 @@
-module Env where
+module Semant.Env where
 
-import qualified Symbol
-import qualified Temp
-import qualified Translate as TL
-import qualified Types as T
+import qualified Semant.Symbol as S
+import qualified Semant.Translate as TL
+import qualified Semant.Types as T
+import qualified Temp.Temp as Temp
 
 data EnvEntry
         = VarEntry {access :: TL.Access, ty :: T.Ty}
         | FunEntry {level :: TL.Level, label :: Temp.Label, formals :: [T.Ty], result :: T.Ty}
 
-type BaseTEnv = Symbol.Table T.Ty
-type BaseVEnv = Symbol.Table EnvEntry
+type BaseTEnv = S.Table T.Ty
+type BaseVEnv = S.Table EnvEntry
 
 baseTEnv :: BaseTEnv
-baseTEnv = Symbol.new [("int", T.INT), ("string", T.STRING)]
+baseTEnv = S.new [("int", T.INT), ("string", T.STRING), ("nil", T.NIL)]
 
 baseVEnv :: BaseVEnv
-baseVEnv = Symbol.new $ map funentry xs
+baseVEnv = S.new $ map funentry reserved
     where
-        funentry :: (Symbol.Symbol, [T.Ty], T.Ty) -> (String, EnvEntry)
+        funentry :: (S.Symbol, [T.Ty], T.Ty) -> (String, EnvEntry)
         funentry (name, fmls, res) = (name, FunEntry TL.Outermost (Temp.namedLabel name) fmls res)
-        xs =
+        reserved =
                 [ ("print", [T.STRING], T.UNIT)
                 , ("flush", [], T.UNIT)
                 , ("getchar", [], T.STRING)

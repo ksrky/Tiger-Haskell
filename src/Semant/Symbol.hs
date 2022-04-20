@@ -1,4 +1,4 @@
-module Symbol where
+module Semant.Symbol where
 
 import qualified Data.Map.Strict as M
 
@@ -7,9 +7,12 @@ type Symbol = String
 type Table a = M.Map Symbol a
 
 symbol :: String -> Symbol
-symbol s = s
+symbol = id
 
-new :: [(String, a)] -> Table a
+name :: Symbol -> String
+name = id
+
+new :: [(Symbol, a)] -> Table a
 new = M.fromList
 
 empty :: Table a
