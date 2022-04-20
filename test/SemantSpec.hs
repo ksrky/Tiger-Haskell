@@ -2,8 +2,10 @@ module SemantSpec where
 
 import Semant.Env
 import Semant.Semant
+import Semant.Translate
 import Syntax.Lexer
 import Syntax.Parser
+import Temp.Temp
 
 import Data.Either (isLeft)
 import System.IO (
@@ -27,7 +29,7 @@ loop (n : ns) = do
                 case runAlex inp parse of
                         Left err -> print err
                         Right exp -> do
-                                let res = transExp (SS baseVEnv baseTEnv) exp
+                                let res = transExp (SS baseVEnv baseTEnv Outermost initState) exp
                                 print res
                                 if n `elem` errorList
                                         then isLeft res `shouldBe` True

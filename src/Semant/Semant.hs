@@ -3,9 +3,11 @@ module Semant.Semant where
 import qualified Error.Error as Err
 import qualified Semant.Env as E
 import qualified Semant.Symbol as S
+import qualified Semant.Translate as TL
 import qualified Semant.Types as T
 import qualified Syntax.Absyn as A
 import qualified Syntax.Absyn.Utils as A
+import qualified Temp.Temp as Temp
 
 import Control.Monad.State
 import Data.Maybe (isJust)
@@ -19,7 +21,7 @@ data ExpTy = ExpTy {exp :: (), ty :: T.Ty}
 instance Show ExpTy where
         show (ExpTy _ ty) = show ty
 
-data SemantState = SS {venv :: VEnv, tenv :: TEnv}
+data SemantState = SS {venv :: VEnv, tenv :: TEnv, level :: TL.Level, tstate :: Temp.TempState}
 
 match :: T.Ty -> T.Ty -> TEnv -> A.Pos -> Either Err.Error ()
 match lty rty tenv pos = do
@@ -39,12 +41,12 @@ match lty rty tenv pos = do
                 _ -> return ty
 
 transVar :: SemantState -> A.Var -> Either Err.Error ExpTy
-transVar st@(SS venv tenv) = trvar
+transVar st@(SS venv tenv _ _) = trvar
     where
         trvar :: A.Var -> Either Err.Error ExpTy
         trvar (A.SimpleVar sym pos) = case S.look venv sym of
                 Nothing -> Err.returnErr_ (Err.UnknownIdentifier sym) pos
-                Just (E.VarEntry ty) -> return $ ExpTy () ty
+                Just (E.VarEntry _ ty) -> return $ ExpTy () ty
                 Just (E.FunEntry{}) -> Err.returnErr_ (Err.UnknownIdentifier sym) pos
         trvar (A.FieldVar v sym pos) = do
                 ty <- ty <$> trvar v
@@ -63,7 +65,7 @@ transVar st@(SS venv tenv) = trvar
                         _ -> Err.returnErr_ (Err.WrongType "array type" (show v)) pos
 
 transExp :: SemantState -> A.Exp -> Either Err.Error ExpTy
-transExp st@(SS venv tenv) = trexp
+transExp st@(SS venv tenv _ _) = trexp
     where
         trexp :: A.Exp -> Either Err.Error ExpTy
         trexp (A.VarExp v) = transVar st v
@@ -72,8 +74,8 @@ transExp st@(SS venv tenv) = trexp
         trexp (A.StringExp _) = return $ ExpTy () T.STRING
         trexp (A.CallExp fun args pos) = case S.look venv fun of
                 Nothing -> Err.returnErr_ (Err.UnknownIdentifier fun) pos
-                Just (E.VarEntry _) -> Err.returnErr_ (Err.UnknownIdentifier fun) pos
-                Just (E.FunEntry fmls res) -> do
+                Just (E.VarEntry _ _) -> Err.returnErr_ (Err.UnknownIdentifier fun) pos
+                Just (E.FunEntry _ _ fmls res) -> do
                         checkformals args fmls
                         return $ ExpTy () res
                     where
@@ -200,13 +202,13 @@ transDecs decs = execStateT $ do
         mapM_ transVarDec decs
     where
         regisTypeDec :: A.Dec -> StateT SemantState (Either Err.Error) [TypeDec]
-        regisTypeDec (A.TypeDec name ty pos) = StateT $ \st@(SS venv tenv) -> do
+        regisTypeDec (A.TypeDec name ty pos) = StateT $ \st@(SS venv tenv _ _) -> do
                 when (isJust $ S.look tenv name) (Err.returnErr_ (Err.MultipleDeclarations name) pos) --todo: local hides global
                 let tenv' = S.enter tenv name (T.Temp ty)
                 return ([(name, pos)], st{tenv = tenv'})
         regisTypeDec _ = return []
         regisFunDec :: A.Dec -> StateT SemantState (Either Err.Error) [FunDec]
-        regisFunDec (A.FunDec name params result body pos) = StateT $ \st@(SS venv tenv) -> do
+        regisFunDec (A.FunDec name params result body pos) = StateT $ \st@(SS venv tenv lev tst) -> do
                 when (isJust $ S.look venv name) (Err.returnErr_ (Err.MultipleDeclarations name) pos) --todo: local hides global
                 params' <- forM params $ \(A.Field name esc typ pos) -> case S.look tenv typ of
                         Just ty -> return (name, ty, esc)
@@ -216,7 +218,8 @@ transDecs decs = execStateT $ do
                                 Nothing -> Err.returnErr_ (Err.TypeNotFound typ) pos
                                 Just result_ty -> return result_ty
                         Nothing -> return T.UNIT
-                let fun = E.FunEntry (map (\(_, x, _) -> x) params') result_ty
+                let (lev', tst') = runState (TL.newLevel lev (map A.fieldEscape params)) tst
+                    fun = E.FunEntry lev' (TL.name lev') (map (\(_, x, _) -> x) params') result_ty
                     venv' = S.enter venv name fun
                 return ([(name, params', result_ty, body, pos)], st{venv = venv'})
         regisFunDec _ = return []
@@ -225,34 +228,40 @@ transDecs decs = execStateT $ do
                 st' <- execStateT (transTy (name, pos)) st
                 return ((), st')
         transFunDec :: FunDec -> StateT SemantState (Either Err.Error) ()
-        transFunDec (name, params', result_ty, body, pos) = StateT $ \st@(SS venv tenv) -> do
+        transFunDec (name, params', result_ty, body, pos) = StateT $ \st@(SS venv tenv lev tst) -> do
                 let enterparam :: (S.Symbol, T.Ty, Bool) -> State SemantState ()
                     enterparam (name, ty, esc) = do
-                        st@(SS venv _) <- get
-                        let venv' = S.enter venv name (E.VarEntry ty)
+                        st@(SS{venv = venv}) <- get
+                        let (acs, tst') = runState (TL.allocLocal lev esc) tst
+                            venv' = S.enter venv name (E.VarEntry acs ty)
                         put st{venv = venv'}
                         return ()
-                    st' = execState (mapM enterparam params') st
+                    fun = case S.look venv name of
+                        Just fun -> fun
+                        _ -> undefined
+                    st' = execState (mapM enterparam params') st{level = E.level fun}
                 ty <- ty <$> transExp st' body
                 match result_ty ty tenv pos
                 return ((), st)
         transVarDec :: A.Dec -> StateT SemantState (Either Err.Error) ()
-        transVarDec (A.VarDec name esc mtyp init pos) = StateT $ \st@(SS venv tenv) -> case mtyp of
+        transVarDec (A.VarDec name esc mtyp init pos) = StateT $ \st@(SS venv tenv lev tst) -> case mtyp of
                 Just (typ, p) -> case S.look tenv typ of
                         Nothing -> Err.returnErr_ (Err.TypeNotFound typ) pos
                         Just t -> do
                                 ty <- ty <$> transExp st init
                                 match t ty tenv pos
-                                let venv' = S.enter venv name (E.VarEntry ty)
-                                return ((), st{venv = venv'})
+                                let (acs, tst') = runState (TL.allocLocal lev esc) tst
+                                    venv' = S.enter venv name (E.VarEntry acs ty)
+                                return ((), st{venv = venv', tstate = tst'})
                 Nothing -> do
                         ty <- ty <$> transExp st init
-                        let venv' = S.enter venv name (E.VarEntry ty)
-                        return ((), st{venv = venv'})
+                        let (acs, tst') = runState (TL.allocLocal lev esc) tst
+                            venv' = S.enter venv name (E.VarEntry acs ty)
+                        return ((), st{venv = venv', tstate = tst'})
         transVarDec _ = return ()
 
 transTy :: (A.Symbol, A.Pos) -> StateT SemantState (Either Err.Error) T.Ty
-transTy (name, pos) = StateT $ \st@(SS _ tenv) -> do
+transTy (name, pos) = StateT $ \st@(SS _ tenv _ _) -> do
         (ty, tenv') <- transTy' [] (name, pos) tenv
         return (ty, st{tenv = S.enter tenv' name ty})
 
@@ -279,5 +288,5 @@ transTy' checked (name, pos) tenv = case S.look tenv name of
 
 transProg :: A.Exp -> Either Err.Error ()
 transProg exp = do
-        transExp (SS E.baseVEnv E.baseTEnv) exp
+        transExp (SS E.baseVEnv E.baseTEnv TL.Outermost Temp.initState) exp
         return ()

@@ -26,15 +26,19 @@ source-repository head
 library
   exposed-modules:
       Error.Error
+      Frame.Frame
+      Frame.X64Frame
       Semant.Env
       Semant.Semant
       Semant.Symbol
+      Semant.Translate
       Semant.Types
       Syntax.Absyn
       Syntax.Absyn.Utils
       Syntax.Lexer
       Syntax.Parser
       Syntax.Token
+      Temp.Temp
   other-modules:
       Paths_tiger
   hs-source-dirs:
