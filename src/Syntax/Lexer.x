@@ -11,6 +11,11 @@ $alpha = [a-zA-Z]
 
 @id = $alpha [$alpha $digit \_ \']*
 @string = \" ($printable # \")* \"
+@decimal = $digit+
+
+@reservedid = while | for | to | break | let | in | end | function | var
+            | type | array | if | then | else | do | of | nil 
+@reservedop = \+ | \- | \* | \/
 
 tokens :-
 
@@ -63,7 +68,7 @@ tokens :-
 <0> \:=             { symbol SymAssign }
 
 <0> @id             { ident }
-<0> $digit+         { int }
+<0> @decimal        { int }
 <0> @string         { string }
 
 {

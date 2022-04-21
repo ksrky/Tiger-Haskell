@@ -170,8 +170,8 @@ rcd_ :: { [(A.Symbol, A.Exp, A.Pos)] }
 parseError :: Token -> Alex a
 parseError t = alexError $ "Parse error: " ++ show t
 
-pos :: AlexPosn -> (Int, Int)
-pos (AlexPn _ l c) = (l, c)
+pos :: AlexPosn -> A.Pos
+pos (AlexPn _ l c) = A.Pos l c
 
 concatRcd :: (A.Symbol, AlexPosn) -> A.Exp -> [(A.Symbol, A.Exp, A.Pos)] -> [(A.Symbol, A.Exp, A.Pos)]
 concatRcd i e [] = [(fst i, e, pos $ snd i)]

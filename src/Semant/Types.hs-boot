@@ -1,7 +1,6 @@
 module Semant.Types where
 
 import Semant.Symbol (Symbol)
-import Semant.Types
 import qualified Syntax.Absyn as Absyn
 
 data Ty
@@ -14,4 +13,3 @@ data Ty
         | NAME Symbol
         | Ref Symbol -- ref type of record and array
         | Temp Absyn.Ty
-        deriving (Eq)

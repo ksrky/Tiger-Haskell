@@ -35,7 +35,9 @@ library
       Semant.Symbol
       Semant.Translate
       Semant.Types
+      Semant.Types.Show
       Syntax.Absyn
+      Syntax.Absyn.Show
       Syntax.Absyn.Utils
       Syntax.Lexer
       Syntax.Parser

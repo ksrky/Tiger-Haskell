@@ -1,6 +1,8 @@
 module Syntax.Absyn where
 
-type Pos = (Int, Int)
+import Syntax.Absyn.Show
+
+data Pos = Pos {line :: Int, col :: Int} deriving (Eq)
 type Symbol = String
 
 data Var
