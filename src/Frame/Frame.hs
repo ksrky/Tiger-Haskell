@@ -1,5 +1,6 @@
 module Frame.Frame where
 
+import qualified Core.Tree as T
 import qualified Temp.Temp as Temp
 
 import Control.Monad.State
@@ -13,3 +14,7 @@ class FrameBase f where
         locals :: f -> [Access]
         allocLocal :: Bool -> f -> State Temp.TempState f
         fp :: f -> Temp.Temp
+
+exp :: Access -> T.Exp -> T.Exp
+exp (InFrame k) e = T.MEM $ T.BINOP T.PLUS (T.CONST k) e
+exp (InReg t) _ = T.TEMP t

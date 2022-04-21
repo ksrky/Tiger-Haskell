@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      Core.Tree
       Error.Error
       Frame.Frame
       Frame.X64Frame
