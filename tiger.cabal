@@ -25,11 +25,11 @@ source-repository head
 
 library
   exposed-modules:
-      Core.Tree
-      Error.Error
       Frame.Frame
       Frame.X64Frame
+      IR.Tree
       Semant.Env
+      Semant.Error
       Semant.FindEscape
       Semant.Semant
       Semant.Symbol

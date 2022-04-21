@@ -1,7 +1,7 @@
 module Semant.Semant where
 
-import qualified Error.Error as Err
 import qualified Semant.Env as E
+import qualified Semant.Error as Err
 import qualified Semant.Symbol as S
 import qualified Semant.Translate as TL
 import qualified Semant.Types as T
@@ -11,7 +11,6 @@ import qualified Temp.Temp as Temp
 
 import Control.Monad.State
 import Data.Maybe (isJust)
-import Error.Error (ErrorKind (TypeNotFound))
 
 type VEnv = S.Table E.EnvEntry
 type TEnv = S.Table T.Ty

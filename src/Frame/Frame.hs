@@ -1,6 +1,6 @@
 module Frame.Frame where
 
-import qualified Core.Tree as T
+import qualified IR.Tree as T
 import qualified Temp.Temp as Temp
 
 import Control.Monad.State
@@ -12,7 +12,7 @@ class FrameBase f where
         name :: f -> Temp.Label
         formals :: f -> [Access]
         locals :: f -> [Access]
-        allocLocal :: Bool -> f -> State Temp.TempState f
+        allocLocal :: f -> Bool -> State Temp.TempState f
         fp :: f -> Temp.Temp
 
 exp :: Access -> T.Exp -> T.Exp

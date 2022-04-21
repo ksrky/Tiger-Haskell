@@ -1,8 +1,8 @@
 module Semant.Translate where
 
-import qualified Core.Tree as T
 import qualified Frame.Frame as Frame
 import qualified Frame.X64Frame as X64Frame
+import qualified IR.Tree as T
 import qualified Temp.Temp as Temp
 
 import Control.Monad.State
@@ -27,7 +27,7 @@ newLevel par fmls = do
 
 allocLocal :: Level -> Bool -> State Temp.TempState Access
 allocLocal lev@Level{frame = frm} esc = do
-        frm' <- Frame.allocLocal esc frm
+        frm' <- Frame.allocLocal frm esc
         return $ Access lev{frame = frm'} (last $ Frame.locals frm')
 allocLocal Outermost _ = undefined
 
@@ -76,21 +76,22 @@ mkseq [] = T.EXP $ T.CONST 0
 mkseq [stm] = stm
 mkseq (stm : stms) = T.SEQ stm (mkseq stms)
 
-{-
 simpleVar :: (Access, Level) -> Exp
-simpleVar (Access lev_dec acc, lev_use) = Ex $ Frame.exp acc t_exp
+simpleVar (Access lev_dec acs, lev_use) = Ex $ Frame.exp acs t_exp
     where
         t_exp = followStaticLink lev_dec lev_use (T.TEMP $ Frame.fp $ frame lev_use)
         followStaticLink :: Level -> Level -> T.Exp -> T.Exp
+        followStaticLink hi Outermost e = undefined
         followStaticLink hi lo e =
                 if hi == lo
                         then e
-                        else followStaticLink hi (parent lo) e'
-            where
-                e' = Frame.exp (-3) e -}
+                        else followStaticLink hi (parent lo) (staticLink e)
 
 nilExp :: Exp
 nilExp = Ex $ T.CONST 0
 
 intExp :: Int -> Exp
 intExp i = Ex $ T.CONST i
+
+staticLink :: T.Exp -> T.Exp
+staticLink e = T.MEM $ T.BINOP T.PLUS (T.CONST (-3)) e --tmp 3

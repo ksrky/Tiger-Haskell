@@ -32,12 +32,12 @@ newFrame lab escs = do
                 m <- state Temp.newTemp
                 return (Frame.InReg m)
 
-allocLocal :: Bool -> Frame -> State Temp.TempState Frame
-allocLocal True frm = do
+allocLocal :: Frame -> Bool -> State Temp.TempState Frame
+allocLocal frm True = do
         let locs = locals frm
             loc = Frame.InFrame (-length locs)
         return frm{locals = locs ++ [loc]}
-allocLocal False frm = do
+allocLocal frm False = do
         m <- state Temp.newTemp
         let locs = locals frm
             loc = Frame.InReg m
