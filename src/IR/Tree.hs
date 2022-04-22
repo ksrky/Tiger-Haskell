@@ -2,12 +2,14 @@ module IR.Tree where
 
 import qualified Temp.Temp as Temp
 
+type Size = Int
+
 data Exp
         = CONST Int
         | NAME Temp.Label
         | TEMP Temp.Temp
         | BINOP BinOp Exp Exp
-        | MEM Exp
+        | MEM Exp Size
         | CALL Exp [Exp]
         | ESEQ Stm Exp
         deriving (Eq, Show)
