@@ -4,7 +4,7 @@ module Syntax.Lexer where
 import Syntax.Token
 }
 
-%wrapper "monadUserState"
+%wrapper "monad"
 
 $digit = 0-9
 $alpha = [a-zA-Z]
@@ -106,9 +106,4 @@ string = \(pos,_,_,str) len -> return $ TokString (unquot $ take len str, pos)
 
 alexEOF :: Alex Token
 alexEOF = return TokEof
-
-data AlexUserState = AlexUserState {}
-
-alexInitUserState :: AlexUserState
-alexInitUserState = AlexUserState {}
 }

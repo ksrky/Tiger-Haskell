@@ -24,4 +24,4 @@ loop (n : ns) = do
 spec :: Spec
 spec = do
         describe "file test" $ do
-                loop [1 .. 1]
+                loop []

@@ -1,4 +1,4 @@
-module Error.Error where
+module Semant.Error where
 
 import qualified Syntax.Absyn as A
 
