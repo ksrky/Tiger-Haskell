@@ -45,7 +45,7 @@ import qualified Syntax.Absyn as A
 '+'                     { TokSymbol (SymPlus, $$) }
 '-'                     { TokSymbol (SymMinus, $$) }
 '*'                     { TokSymbol (SymTimes, $$) }
-'/'                     { TokSymbol (SymDevide, $$) }
+'/'                     { TokSymbol (SymDivide, $$) }
 '='                     { TokSymbol (SymEq, $$) }
 '<>'                    { TokSymbol (SymNeq, $$) }
 '<'                     { TokSymbol (SymLt, $$) }
@@ -122,7 +122,7 @@ exp :: { A.Exp }
     | exp '+' exp                           { A.OpExp $1 A.PlusOp $3 (pos $2) }
     | exp '-' exp                           { A.OpExp $1 A.MinusOp $3 (pos $2) }
     | exp '*' exp                           { A.OpExp $1 A.TimesOp $3 (pos $2) }
-    | exp '/' exp                           { A.OpExp $1 A.DevideOp $3 (pos $2) }
+    | exp '/' exp                           { A.OpExp $1 A.DivideOp $3 (pos $2) }
     | exp '=' exp                           { A.OpExp $1 A.EqOp $3 (pos $2) }
     | exp '<>' exp                          { A.OpExp $1 A.NeqOp $3 (pos $2) }
     | exp '<' exp                           { A.OpExp $1 A.LtOp $3 (pos $2) }

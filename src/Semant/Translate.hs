@@ -171,8 +171,8 @@ assignExp left right = do
         right' <- unEx right
         return $ Nx $ T.MOVE left' right'
 
-ifThenElse :: Exp -> Exp -> Exp -> State Temp.TempState Exp
-ifThenElse test then' else' = do
+ifExp :: Exp -> Exp -> Exp -> State Temp.TempState Exp
+ifExp test then' else' = do
         let genstm = unCx test
         then'' <- unEx then'
         else'' <- unEx else'
@@ -195,21 +195,17 @@ ifThenElse test then' else' = do
                                 )
                                 (T.TEMP r)
 
-whileExp :: Exp -> Exp -> Temp.Label -> State Temp.TempState Exp
-whileExp test body lab = do
+whileExp :: Exp -> Exp -> State Temp.TempState Exp --tmp: break nasi
+whileExp test body = do
         let genstm = unCx test
         body' <- unNx body
-        l1 <- Temp.newLabel
-        l2 <- Temp.newLabel
+        lab <- Temp.newLabel
         return $
                 Nx $
                         mkseq
-                                [ T.LABEL l1
-                                , genstm (l2, lab)
-                                , T.LABEL l2
+                                [ T.LABEL lab
                                 , body'
-                                , T.JUMP (T.NAME l1) [l1]
-                                , T.LABEL lab
+                                , T.JUMP (T.NAME lab) [lab]
                                 ]
 
 breakExp :: Temp.Label -> Exp

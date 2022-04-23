@@ -14,7 +14,7 @@ data Var
 data Exp
         = VarExp Var
         | NilExp
-        | IntExp Integer
+        | IntExp Int
         | StringExp (String, Pos)
         | CallExp {expFunc :: Symbol, args :: [Exp], expPos :: Pos}
         | OpExp {left :: Exp, oper :: Oper, right :: Exp, expPos :: Pos}
@@ -45,7 +45,7 @@ data Oper
         = PlusOp
         | MinusOp
         | TimesOp
-        | DevideOp
+        | DivideOp
         | EqOp
         | NeqOp
         | LtOp

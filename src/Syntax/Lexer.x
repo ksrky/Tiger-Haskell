@@ -56,7 +56,7 @@ tokens :-
 <0> \+              { symbol SymPlus }
 <0> \-              { symbol SymMinus }
 <0> \*              { symbol SymTimes }
-<0> \/              { symbol SymDevide }
+<0> \/              { symbol SymDivide }
 <0> \=              { symbol SymEq }
 <0> \<\>            { symbol SymNeq }
 <0> \<              { symbol SymLt }
@@ -81,7 +81,7 @@ data Token
     = TokKeyword (Keyword, AlexPosn)
     | TokSymbol (Symbol, AlexPosn)
     | TokId (String, AlexPosn)
-    | TokInt (Integer, AlexPosn)
+    | TokInt (Int, AlexPosn)
     | TokString (String, AlexPosn)
     | TokEof
     deriving (Eq, Show)
