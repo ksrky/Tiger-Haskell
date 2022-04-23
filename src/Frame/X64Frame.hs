@@ -23,6 +23,9 @@ instance Frame.FrameBase Frame where
         fp = fp
         rv = undefined
 
+wordSize :: Int
+wordSize = 3 --tmp 3
+
 newFrame :: Temp.Label -> [Bool] -> State Temp.TempState Frame
 newFrame lab escs = do
         fmls <- mapM calcformals (zip escs [0 ..])

@@ -90,10 +90,18 @@ simpleVar (Access lev_dec acs, lev_use) = Ex $ Frame.exp acs exp
         -- followStaticLink hi Outermost e = undefined
         followStaticLink hi lo e
                 | hi == lo = e
-                | otherwise = followStaticLink hi (parent lo) (staticLink e)
+                | otherwise = followStaticLink hi (parent lo) (calcStaticLink e)
 
-subscriptVar :: (Access, Level) -> Exp
-subscriptVar (Access lev_dec acs, lev_use) = undefined
+fieldVar :: Exp -> Exp -> State Temp.TempState Exp
+fieldVar = undefined
+
+subscriptVar :: Exp -> Exp -> State Temp.TempState Exp
+subscriptVar var idx = do
+        var' <- unEx var
+        idx' <- unEx idx
+        r <- Temp.newTemp
+        y <- callExp (Temp.namedLabel "getItem") [var, idx]
+        return undefined -- Ex $ T.ESEQ (T.MOVE (T.TEMP r) y) (T.TEMP r)
 
 nilExp :: Exp
 nilExp = Ex $ T.CONST 0
@@ -220,5 +228,5 @@ letExp es body = do
 arrayExp :: Exp -> Exp -> State Temp.TempState Exp
 arrayExp size init = callExp (Temp.namedLabel "initArray") [size, init]
 
-staticLink :: T.Exp -> T.Exp
-staticLink e = T.MEM (T.BINOP T.PLUS (T.CONST (-3)) e) 0 --tmp 3, 0
+calcStaticLink :: T.Exp -> T.Exp
+calcStaticLink e = T.MEM (T.BINOP T.PLUS e (T.CONST (-3))) 1 --tmp 3, 1
