@@ -34,7 +34,7 @@ allocLocal Outermost _ = undefined
 procEntryExit :: (Level, Exp) -> ()
 procEntryExit = undefined
 
-getResult :: () -> [X64Frame.Frag]
+getResult :: () -> [Frame.Frag f]
 getResult = undefined
 
 data Exp
@@ -83,15 +83,14 @@ mkseq [stm] = stm
 mkseq (stm : stms) = T.SEQ stm (mkseq stms)
 
 simpleVar :: (Access, Level) -> Exp
-simpleVar (Access lev_dec acs, lev_use) = Ex $ Frame.exp acs t_exp
+simpleVar (Access lev_dec acs, lev_use) = Ex $ Frame.exp acs exp
     where
-        t_exp = followStaticLink lev_dec lev_use (T.TEMP $ Frame.fp $ frame lev_use)
+        exp = followStaticLink lev_dec lev_use (T.TEMP $ Frame.fp $ frame lev_use)
         followStaticLink :: Level -> Level -> T.Exp -> T.Exp
-        followStaticLink hi Outermost e = undefined
-        followStaticLink hi lo e =
-                if hi == lo
-                        then e
-                        else followStaticLink hi (parent lo) (staticLink e)
+        -- followStaticLink hi Outermost e = undefined
+        followStaticLink hi lo e
+                | hi == lo = e
+                | otherwise = followStaticLink hi (parent lo) (staticLink e)
 
 subscriptVar :: (Access, Level) -> Exp
 subscriptVar (Access lev_dec acs, lev_use) = undefined
@@ -102,14 +101,15 @@ nilExp = Ex $ T.CONST 0
 intExp :: Int -> Exp
 intExp i = Ex $ T.CONST i
 
-{-stringExp :: String -> Temp.Temp -> (Exp, Frame.Frag, Temp.Temp)
-stringExp s temp =
-  let
-    (label, temp') = Temp.newLabel temp
-    frag = Frame.STRING label s
-    expr = Ex $ T.NAME label
-  in
-   (expr, frag, temp')-}
+stringExp :: String -> State Temp.TempState (Exp, Frame.Frag f)
+stringExp s = do
+        lab <- Temp.newLabel
+        return (Ex $ T.NAME lab, Frame.STRING lab s)
+
+callExp :: Temp.Label -> [Exp] -> State Temp.TempState Exp
+callExp f es = do
+        args <- mapM unEx es
+        return $ Ex $ T.CALL (T.NAME f) args
 
 binOp :: T.BinOp -> Exp -> Exp -> State Temp.TempState Exp
 binOp op left right = do
@@ -153,10 +153,23 @@ eqOp = relOp T.EQ
 neqOp :: Exp -> Exp -> State Temp.TempState Exp
 neqOp = relOp T.NE
 
-callExp :: Temp.Label -> [Exp] -> State Temp.TempState Exp
-callExp f es = do
-        args <- mapM unEx es
-        return $ Ex $ T.CALL (T.NAME f) args
+recordExp :: [Exp] -> State Temp.TempState Exp
+recordExp cs = callExp (Temp.namedLabel "initRecord") (Ex (T.CONST $ length cs) : cs)
+
+seqExp :: [Exp] -> State Temp.TempState Exp
+seqExp [] = return $ Nx $ T.EXP $ T.CONST 0
+seqExp exps = do
+        e <- unEx (last exps)
+        ss <- mapM unNx (init exps)
+        return $ case ss of
+                [] -> Ex e
+                _ -> Ex $ T.ESEQ (mkseq ss) e
+
+assignExp :: Exp -> Exp -> State Temp.TempState Exp
+assignExp left right = do
+        left' <- unEx left
+        right' <- unEx right
+        return $ Nx $ T.MOVE left' right'
 
 ifThenElse :: Exp -> Exp -> Exp -> State Temp.TempState Exp
 ifThenElse test then' else' = do
@@ -182,31 +195,8 @@ ifThenElse test then' else' = do
                                 )
                                 (T.TEMP r)
 
-recordExp :: [Exp] -> State Temp.TempState Exp
-recordExp cs = callExp (Temp.namedLabel "initRecord") (Ex (T.CONST $ length cs) : cs)
-
-arrayExp :: Exp -> Exp -> State Temp.TempState Exp
-arrayExp size init = callExp (Temp.namedLabel "initArray") [size, init]
-
--- Frame.externalCall "initArray" [size, init]
-
-seqExp :: [Exp] -> State Temp.TempState Exp
-seqExp [] = return $ Nx $ T.EXP $ T.CONST 0
-seqExp exps = do
-        e <- unEx (last exps)
-        ss <- mapM unNx (init exps)
-        return $ case ss of
-                [] -> Ex e
-                _ -> Ex $ T.ESEQ (mkseq ss) e
-
-assignExp :: Exp -> Exp -> State Temp.TempState Exp
-assignExp left right = do
-        left' <- unEx left
-        right' <- unEx right
-        return $ Nx $ T.MOVE left' right'
-
 whileExp :: Exp -> Exp -> Temp.Label -> State Temp.TempState Exp
-whileExp test body brkdest = do
+whileExp test body lab = do
         let genstm = unCx test
         body' <- unNx body
         l1 <- Temp.newLabel
@@ -215,11 +205,11 @@ whileExp test body brkdest = do
                 Nx $
                         mkseq
                                 [ T.LABEL l1
-                                , genstm (l2, brkdest)
+                                , genstm (l2, lab)
                                 , T.LABEL l2
                                 , body'
                                 , T.JUMP (T.NAME l1) [l1]
-                                , T.LABEL brkdest
+                                , T.LABEL lab
                                 ]
 
 breakExp :: Temp.Label -> Exp
@@ -230,6 +220,9 @@ letExp es body = do
         ss <- mapM unNx es
         e <- unEx body
         return $ Ex $ T.ESEQ (mkseq ss) e
+
+arrayExp :: Exp -> Exp -> State Temp.TempState Exp
+arrayExp size init = callExp (Temp.namedLabel "initArray") [size, init]
 
 staticLink :: T.Exp -> T.Exp
 staticLink e = T.MEM (T.BINOP T.PLUS (T.CONST (-3)) e) 0 --tmp 3, 0

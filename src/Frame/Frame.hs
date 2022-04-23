@@ -14,6 +14,12 @@ class FrameBase f where
         locals :: f -> [Access]
         allocLocal :: f -> Bool -> State Temp.TempState f
         fp :: f -> Temp.Temp
+        rv :: f -> Temp.Temp
+
+data Frag f
+        = PROC {body :: T.Stm, frame :: f}
+        | STRING Temp.Label String
+        deriving (Eq, Show)
 
 exp :: Access -> T.Exp -> T.Exp
 exp (InFrame k) e = T.MEM (T.BINOP T.PLUS (T.CONST k) e) 0 --tmp: 0
@@ -21,3 +27,4 @@ exp (InReg t) _ = T.TEMP t
 
 -- externalCall :: String -> [T.Exp] -> T.Exp
 -- externalCall s = T.CALL (T.NAME $ Temp.namedLabel s)
+-- procExit1 :: (Frame, T.Stm) -> T.Stm

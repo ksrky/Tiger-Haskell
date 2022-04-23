@@ -14,11 +14,6 @@ data Frame = Frame
         }
         deriving (Eq, Show)
 
-data Frag
-        = PROC {body :: T.Stm, frame :: Frame}
-        | STRING Temp.Label String
-        deriving (Eq, Show)
-
 instance Frame.FrameBase Frame where
         newFrame = newFrame
         name = name
@@ -26,6 +21,7 @@ instance Frame.FrameBase Frame where
         locals = locals
         allocLocal = allocLocal
         fp = fp
+        rv = undefined
 
 newFrame :: Temp.Label -> [Bool] -> State Temp.TempState Frame
 newFrame lab escs = do
