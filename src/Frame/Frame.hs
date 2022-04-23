@@ -22,7 +22,7 @@ data Frag f
         deriving (Eq, Show)
 
 exp :: Access -> T.Exp -> T.Exp
-exp (InFrame k) e = T.MEM (T.BINOP T.PLUS e (T.CONST k)) 1 --tmp: 1
+exp (InFrame k) e = T.MEM (T.BINOP T.PLUS e (T.CONST k))
 exp (InReg t) _ = T.TEMP t
 
 -- externalCall :: String -> [T.Exp] -> T.Exp

@@ -9,7 +9,7 @@ data Exp
         | NAME Temp.Label
         | TEMP Temp.Temp
         | BINOP BinOp Exp Exp
-        | MEM Exp Size
+        | MEM Exp
         | CALL Exp [Exp]
         | ESEQ Stm Exp
         deriving (Eq, Show)

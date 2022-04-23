@@ -27,6 +27,7 @@ library
   exposed-modules:
       Frame.Frame
       Frame.X64Frame
+      IR.Canon
       IR.Tree
       Semant.Env
       Semant.Error

@@ -229,4 +229,4 @@ arrayExp :: Exp -> Exp -> State Temp.TempState Exp
 arrayExp size init = callExp (Temp.namedLabel "initArray") [size, init]
 
 calcStaticLink :: T.Exp -> T.Exp
-calcStaticLink e = T.MEM (T.BINOP T.PLUS e (T.CONST (-3))) 1 --tmp 3, 1
+calcStaticLink e = T.MEM (T.BINOP T.PLUS e (T.CONST (-3))) --tmp 3
