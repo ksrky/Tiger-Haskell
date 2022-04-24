@@ -1,10 +1,10 @@
 module IR.Canon where
 
 import qualified IR.Tree as T
-import qualified Semant.Symbol as Symbol
 import qualified Temp.Temp as Temp
 
 import Control.Monad.State
+import qualified Data.Map.Strict as M
 
 linearize :: T.Stm -> State Temp.TempState [T.Stm]
 linearize stm0 = do
@@ -101,8 +101,8 @@ basicBlocks stms = do
         stms' <- blocks (stms, [])
         return (stms', done)
 
-enterblock :: [T.Stm] -> Symbol.Table [T.Stm] -> Symbol.Table [T.Stm]
-enterblock b@(T.LABEL s : _) table = Symbol.enter table s b
+enterblock :: [T.Stm] -> M.Map Temp.Label [T.Stm] -> M.Map Temp.Label [T.Stm]
+enterblock b@(T.LABEL s : _) table = M.insert s b table
 enterblock _ table = table
 
 splitlast :: [a] -> ([a], a)
@@ -110,14 +110,14 @@ splitlast [] = undefined
 splitlast [x] = ([], x)
 splitlast (h : t) = let (t', last) = splitlast t in (h : t', last)
 
-trace :: Symbol.Table [T.Stm] -> [T.Stm] -> [[T.Stm]] -> State Temp.TempState [T.Stm]
+trace :: M.Map Temp.Label [T.Stm] -> [T.Stm] -> [[T.Stm]] -> State Temp.TempState [T.Stm]
 trace table b@(T.LABEL lab : _) rest = do
-        let table = Symbol.enter table lab []
+        let table = M.insert lab [] table
         case splitlast b of
-                (most, T.JUMP (T.NAME lab') _) -> case Symbol.look table lab of
+                (most, T.JUMP (T.NAME lab') _) -> case M.lookup lab table of
                         Just b'@(_ : _) -> trace table b' rest
                         _ -> (b ++) <$> getnext table rest
-                (most, T.CJUMP opr x y t f) -> case (Symbol.look table t, Symbol.look table f) of
+                (most, T.CJUMP opr x y t f) -> case (M.lookup t table,M.lookup f table) of
                         (_, Just b'@(_ : _)) -> (b ++) <$> trace table b' rest
                         (Just b'@(_ : _), _) -> ((most ++ [T.CJUMP (T.notRel opr) x y f t]) ++) <$> trace table b' rest
                         _ -> do
@@ -127,12 +127,12 @@ trace table b@(T.LABEL lab : _) rest = do
                 _ -> error ""
 trace _ _ _ = undefined
 
-getnext :: Symbol.Table [T.Stm] -> [[T.Stm]] -> State Temp.TempState [T.Stm]
-getnext table (b@(T.LABEL lab : _) : rest) = case Symbol.look table lab of
+getnext :: M.Map Temp.Label [T.Stm] -> [[T.Stm]] -> State Temp.TempState [T.Stm]
+getnext table (b@(T.LABEL lab : _) : rest) = case M.lookup lab table of
         Just (_ : _) -> trace table b rest
         _ -> getnext table rest
 getnext table [] = return []
 getnext _ _ = undefined
 
 traceSchedule :: ([[T.Stm]], Temp.Label) -> State Temp.TempState [T.Stm]
-traceSchedule (blocks, done) = (++ [T.LABEL done]) <$> getnext (foldr enterblock Symbol.empty blocks) blocks
+traceSchedule (blocks, done) = (++ [T.LABEL done]) <$> getnext (foldr enterblock M.empty blocks) blocks
