@@ -1,8 +1,8 @@
 module IR.Canon where
 
 import qualified IR.Tree as T
-import qualified Temp.Temp as Temp
 import qualified Semant.Symbol as Symbol
+import qualified Temp.Temp as Temp
 
 import Control.Monad.State
 
@@ -78,24 +78,22 @@ linear (s, l) = s : l
 
 -- ==================== linearize =========================
 
-type Block = [T.Stm]
-
 basicBlocks :: [T.Stm] -> State Temp.TempState ([[T.Stm]], Temp.Label)
 basicBlocks stms = do
         done <- Temp.newLabel
         let
                 blocks :: ([T.Stm], [[T.Stm]]) -> State Temp.TempState [[T.Stm]]
                 blocks (head@(T.LABEL _) : tail, blist) = next (tail, [head])
-                        where
-                                next :: ([T.Stm], [T.Stm]) -> State Temp.TempState [[T.Stm]]
-                                next (s@(T.JUMP{}) : rest, thisblock) = endblock (rest, s : thisblock)
-                                next (s@(T.CJUMP{}) : rest, thisblock) = endblock (rest, s : thisblock)
-                                next (stms@(T.LABEL lab : _), thisblock) = next (T.JUMP (T.NAME lab) [lab] : stms, thisblock)
-                                next (s : rest, thisblock) = next (rest, s : thisblock)
-                                next ([], thisblock) = next ([T.JUMP (T.NAME done) [done]], thisblock)
+                    where
+                        next :: ([T.Stm], [T.Stm]) -> State Temp.TempState [[T.Stm]]
+                        next (s@(T.JUMP{}) : rest, thisblock) = endblock (rest, s : thisblock)
+                        next (s@(T.CJUMP{}) : rest, thisblock) = endblock (rest, s : thisblock)
+                        next (stms@(T.LABEL lab : _), thisblock) = next (T.JUMP (T.NAME lab) [lab] : stms, thisblock)
+                        next (s : rest, thisblock) = next (rest, s : thisblock)
+                        next ([], thisblock) = next ([T.JUMP (T.NAME done) [done]], thisblock)
 
-                                endblock :: ([T.Stm], [T.Stm]) -> State Temp.TempState [[T.Stm]]
-                                endblock (stms, thisblock) = blocks (stms, reverse thisblock : blist)
+                        endblock :: ([T.Stm], [T.Stm]) -> State Temp.TempState [[T.Stm]]
+                        endblock (stms, thisblock) = blocks (stms, reverse thisblock : blist)
                 blocks ([], blist) = return $ reverse blist
                 blocks (stms, blist) = do
                         lab <- Temp.newLabel
@@ -103,38 +101,38 @@ basicBlocks stms = do
         stms' <- blocks (stms, [])
         return (stms', done)
 
-enterblock :: [T.Stm]-> Symbol.Table [T.Stm] -> Symbol.Table [T.Stm]
+enterblock :: [T.Stm] -> Symbol.Table [T.Stm] -> Symbol.Table [T.Stm]
 enterblock b@(T.LABEL s : _) table = Symbol.enter table s b
 enterblock _ table = table
 
 splitlast :: [a] -> ([a], a)
-splitlast []= undefined
-splitlast [x] = ([],x)
-splitlast (h:t) = let (t',last) = splitlast t in (h:t', last)
+splitlast [] = undefined
+splitlast [x] = ([], x)
+splitlast (h : t) = let (t', last) = splitlast t in (h : t', last)
 
 trace :: Symbol.Table [T.Stm] -> [T.Stm] -> [[T.Stm]] -> State Temp.TempState [T.Stm]
-trace table b@(T.LABEL lab:_) rest = do
+trace table b@(T.LABEL lab : _) rest = do
         let table = Symbol.enter table lab []
         case splitlast b of
                 (most, T.JUMP (T.NAME lab') _) -> case Symbol.look table lab of
-                        Just b'@(_:_) -> trace table b' rest
-                        _ ->  (b++) <$> getnext table rest
+                        Just b'@(_ : _) -> trace table b' rest
+                        _ -> (b ++) <$> getnext table rest
                 (most, T.CJUMP opr x y t f) -> case (Symbol.look table t, Symbol.look table f) of
-                        (_, Just b'@(_:_)) -> (b++) <$> trace table b' rest
-                        (Just b'@(_:_), _) -> ((most++ [T.CJUMP (T.notRel opr) x y f t])++) <$>  trace table b' rest
+                        (_, Just b'@(_ : _)) -> (b ++) <$> trace table b' rest
+                        (Just b'@(_ : _), _) -> ((most ++ [T.CJUMP (T.notRel opr) x y f t]) ++) <$> trace table b' rest
                         _ -> do
                                 f' <- Temp.newLabel
-                                ((most ++ [T.CJUMP opr x y t f',  T.LABEL f', T.JUMP (T.NAME f) [f]])++)  <$> getnext table rest
-                (most, T.JUMP{}) -> (b++) <$> getnext table rest
+                                ((most ++ [T.CJUMP opr x y t f', T.LABEL f', T.JUMP (T.NAME f) [f]]) ++) <$> getnext table rest
+                (most, T.JUMP{}) -> (b ++) <$> getnext table rest
                 _ -> error ""
 trace _ _ _ = undefined
 
-getnext :: Symbol.Table [T.Stm] ->[[T.Stm]] -> State Temp.TempState [T.Stm]
-getnext table (b@(T.LABEL lab:_):rest) = case Symbol.look table lab of
-        Just (_:_) -> trace table b rest
+getnext :: Symbol.Table [T.Stm] -> [[T.Stm]] -> State Temp.TempState [T.Stm]
+getnext table (b@(T.LABEL lab : _) : rest) = case Symbol.look table lab of
+        Just (_ : _) -> trace table b rest
         _ -> getnext table rest
 getnext table [] = return []
 getnext _ _ = undefined
 
 traceSchedule :: ([[T.Stm]], Temp.Label) -> State Temp.TempState [T.Stm]
-traceSchedule (blocks, done)= (++ [T.LABEL done]) <$> getnext (foldr enterblock Symbol.empty blocks) blocks
+traceSchedule (blocks, done) = (++ [T.LABEL done]) <$> getnext (foldr enterblock Symbol.empty blocks) blocks
