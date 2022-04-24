@@ -103,9 +103,9 @@ basicBlocks stms = do
         stms' <- blocks (stms, [])
         return (stms', done)
 
-enterblock :: ([T.Stm], Symbol.Table [T.Stm]) -> Symbol.Table [T.Stm]
-enterblock (b@(T.LABEL s : _), table) = Symbol.enter table s b
-enterblock (_, table) = table
+enterblock :: [T.Stm]-> Symbol.Table [T.Stm] -> Symbol.Table [T.Stm]
+enterblock b@(T.LABEL s : _) table = Symbol.enter table s b
+enterblock _ table = table
 
 splitlast :: [a] -> ([a], a)
 splitlast []= undefined
@@ -118,7 +118,7 @@ trace table b@(T.LABEL lab:_) rest = do
         case splitlast b of
                 (most, T.JUMP (T.NAME lab') _) -> case Symbol.look table lab of
                         Just b'@(_:_) -> trace table b' rest
-                        _ ->  (b++) <$> getnext table rest --[b]>>= (getnext table rest ++)
+                        _ ->  (b++) <$> getnext table rest
                 (most, T.CJUMP opr x y t f) -> case (Symbol.look table t, Symbol.look table f) of
                         (_, Just b'@(_:_)) -> (b++) <$> trace table b' rest
                         (Just b'@(_:_), _) -> ((most++ [T.CJUMP (T.notRel opr) x y f t])++) <$>  trace table b' rest
@@ -136,5 +136,5 @@ getnext table (b@(T.LABEL lab:_):rest) = case Symbol.look table lab of
 getnext table [] = return []
 getnext _ _ = undefined
 
-traceSchedule :: ([[T.Stm]], Temp.Label) -> [T.Stm]
-traceSchedule = error ""
+traceSchedule :: ([[T.Stm]], Temp.Label) -> State Temp.TempState [T.Stm]
+traceSchedule (blocks, done)= (++ [T.LABEL done]) <$> getnext (foldr enterblock Symbol.empty blocks) blocks
