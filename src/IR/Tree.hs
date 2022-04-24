@@ -1,6 +1,7 @@
 module IR.Tree where
 
 import qualified Temp.Temp as Temp
+import Prelude hiding (EQ, GT, LT)
 
 type Size = Int
 
@@ -48,3 +49,15 @@ data Relop
         | UGT
         | UGE
         deriving (Eq, Show)
+
+notRel :: Relop -> Relop
+notRel EQ = NE
+notRel NE = EQ
+notRel LT = GE
+notRel LE = GT
+notRel GT = LE
+notRel GE = LT
+notRel ULT = UGE
+notRel ULE = UGT
+notRel UGT = ULE
+notRel UGE = ULT
