@@ -1,6 +1,7 @@
 module Frame.X64Frame where
 
 import qualified Frame.Frame as Frame
+import qualified IR.Tree as T
 import qualified Temp.Temp as Temp
 
 import Control.Monad.State
@@ -20,6 +21,10 @@ instance Frame.FrameBase Frame where
         locals = locals
         allocLocal = allocLocal
         fp = fp
+        rv = undefined
+
+wordSize :: Int
+wordSize = 3 --tmp 3
 
 newFrame :: Temp.Label -> [Bool] -> State Temp.TempState Frame
 newFrame lab escs = do
@@ -29,16 +34,15 @@ newFrame lab escs = do
         calcformals :: (Bool, Int) -> State Temp.TempState Frame.Access
         calcformals (True, n) = return (Frame.InFrame (-n))
         calcformals (False, _) = do
-                m <- state Temp.newTemp
-                return (Frame.InReg m)
+                Frame.InReg <$> Temp.newTemp
 
-allocLocal :: Bool -> Frame -> State Temp.TempState Frame
-allocLocal True frm = do
+allocLocal :: Frame -> Bool -> State Temp.TempState Frame
+allocLocal frm True = do
         let locs = locals frm
             loc = Frame.InFrame (-length locs)
         return frm{locals = locs ++ [loc]}
-allocLocal False frm = do
-        m <- state Temp.newTemp
+allocLocal frm False = do
+        m <- Temp.newTemp
         let locs = locals frm
             loc = Frame.InReg m
         return frm{locals = locs ++ [loc]}

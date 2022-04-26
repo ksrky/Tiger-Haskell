@@ -11,6 +11,7 @@ extra-source-files:
 - ChangeLog.md
 
 build-tools:
+- alex
 - happy
 
 # Metadata used when publishing your package

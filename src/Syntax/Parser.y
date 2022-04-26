@@ -45,7 +45,7 @@ import qualified Syntax.Absyn as A
 '+'                     { TokSymbol (SymPlus, $$) }
 '-'                     { TokSymbol (SymMinus, $$) }
 '*'                     { TokSymbol (SymTimes, $$) }
-'/'                     { TokSymbol (SymDevide, $$) }
+'/'                     { TokSymbol (SymDivide, $$) }
 '='                     { TokSymbol (SymEq, $$) }
 '<>'                    { TokSymbol (SymNeq, $$) }
 '<'                     { TokSymbol (SymLt, $$) }
@@ -122,7 +122,7 @@ exp :: { A.Exp }
     | exp '+' exp                           { A.OpExp $1 A.PlusOp $3 (pos $2) }
     | exp '-' exp                           { A.OpExp $1 A.MinusOp $3 (pos $2) }
     | exp '*' exp                           { A.OpExp $1 A.TimesOp $3 (pos $2) }
-    | exp '/' exp                           { A.OpExp $1 A.DevideOp $3 (pos $2) }
+    | exp '/' exp                           { A.OpExp $1 A.DivideOp $3 (pos $2) }
     | exp '=' exp                           { A.OpExp $1 A.EqOp $3 (pos $2) }
     | exp '<>' exp                          { A.OpExp $1 A.NeqOp $3 (pos $2) }
     | exp '<' exp                           { A.OpExp $1 A.LtOp $3 (pos $2) }
@@ -170,8 +170,8 @@ rcd_ :: { [(A.Symbol, A.Exp, A.Pos)] }
 parseError :: Token -> Alex a
 parseError t = alexError $ "Parse error: " ++ show t
 
-pos :: AlexPosn -> (Int, Int)
-pos (AlexPn _ l c) = (l, c)
+pos :: AlexPosn -> A.Pos
+pos (AlexPn _ l c) = A.Pos l c
 
 concatRcd :: (A.Symbol, AlexPosn) -> A.Exp -> [(A.Symbol, A.Exp, A.Pos)] -> [(A.Symbol, A.Exp, A.Pos)]
 concatRcd i e [] = [(fst i, e, pos $ snd i)]
