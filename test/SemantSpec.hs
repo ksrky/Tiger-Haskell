@@ -29,7 +29,7 @@ loop (n : ns) = do
                 case runAlex inp parse of
                         Left err -> print err
                         Right exp -> do
-                                let res = transExp (SS baseVEnv baseTEnv Outermost initState) exp
+                                let res = transExp (SS baseVEnv baseTEnv Outermost emptyState) exp
                                 print res
                                 if n `elem` errorList
                                         then isLeft res `shouldBe` True

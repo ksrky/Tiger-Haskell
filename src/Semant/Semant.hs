@@ -307,5 +307,5 @@ transTy' checked (name, pos) tenv = case S.look tenv name of
 
 transProg :: A.Exp -> Either Err.Error ()
 transProg exp = do
-        transExp (SS E.baseVEnv E.baseTEnv TL.Outermost Temp.initState) exp
+        transExp (SS E.baseVEnv E.baseTEnv TL.Outermost Temp.emptyState) exp
         return ()
