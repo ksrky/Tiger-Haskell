@@ -34,7 +34,7 @@ data Symbol
         | SymPlus
         | SymMinus
         | SymTimes
-        | SymDevide
+        | SymDivide
         | SymEq
         | SymNeq
         | SymLt
