@@ -107,3 +107,12 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - tiger
+  chapter9:
+    main:                Main.hs
+    source-dirs:         src/chapter9
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - tiger
