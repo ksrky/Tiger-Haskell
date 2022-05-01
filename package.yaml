@@ -62,3 +62,48 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - tiger
+  chapter5a:
+    main:                Main.hs
+    source-dirs:         src/chapter5a
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - tiger
+  chapter5b:
+    main:                Main.hs
+    source-dirs:         src/chapter5b
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - tiger
+  chapter6:
+    main:                Main.hs
+    source-dirs:         src/chapter6
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - tiger
+  chapter7:
+    main:                Main.hs
+    source-dirs:         src/chapter7
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - tiger
+  chapter8:
+    main:                Main.hs
+    source-dirs:         src/chapter8
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - tiger

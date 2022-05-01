@@ -9,8 +9,8 @@ type Label = Symbol.Symbol
 
 data TempState = TS {temps :: Temp, labs :: Int}
 
-emptyState :: TempState
-emptyState = TS{temps = 0, labs = 0}
+initState :: TempState
+initState = TS{temps = 0, labs = 0}
 
 newTemp :: State TempState Temp
 newTemp = state (\(TS t l) -> (t, TS (t + 1) l))
