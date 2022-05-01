@@ -8,7 +8,7 @@ opkind :: Oper -> OpKind
 opkind PlusOp = Arith
 opkind MinusOp = Arith
 opkind TimesOp = Arith
-opkind DevideOp = Arith
+opkind DivideOp = Arith
 opkind EqOp = Equal
 opkind NeqOp = Equal
 opkind LtOp = Order
