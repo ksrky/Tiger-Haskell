@@ -21,6 +21,9 @@ data Frag f
         | STRING Temp.Label String
         deriving (Eq, Show)
 
+wordSize :: Int
+wordSize = 32
+
 exp :: Access -> T.Exp -> T.Exp
 exp (InFrame k) e = T.MEM (T.BINOP T.PLUS e (T.CONST k))
 exp (InReg t) _ = T.TEMP t

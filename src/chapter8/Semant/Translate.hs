@@ -82,26 +82,33 @@ mkseq [] = T.EXP $ T.CONST 0
 mkseq [stm] = stm
 mkseq (stm : stms) = T.SEQ stm (mkseq stms)
 
-simpleVar :: (Access, Level) -> Exp
-simpleVar (Access lev_dec acs, lev_use) = Ex $ Frame.exp acs exp
+calcStaticLink :: Level -> T.Exp -> T.Exp
+calcStaticLink lev e = T.MEM (T.BINOP T.PLUS e (T.CONST (par - chi)))
     where
-        exp = followStaticLink lev_dec lev_use (T.TEMP $ Frame.fp $ frame lev_use)
-        followStaticLink :: Level -> Level -> T.Exp -> T.Exp
-        -- followStaticLink hi Outermost e = undefined
-        followStaticLink hi lo e
+        chi = Frame.fp $ frame lev
+        par = Frame.fp $ frame $ parent lev
+
+simpleVar :: (Access, Level) -> Exp
+simpleVar (Access lev_dec acs, lev_use) = Ex $ Frame.exp acs (Frame.exp acs expr)
+    where
+        expr = walkStaticLink lev_dec lev_use (T.TEMP $ Frame.fp $ frame lev_use)
+        walkStaticLink :: Level -> Level -> T.Exp -> T.Exp
+        -- walkStaticLink hi Outermost e = undefined
+        walkStaticLink hi lo e
                 | hi == lo = e
-                | otherwise = followStaticLink hi (parent lo) (calcStaticLink e)
+                | otherwise = walkStaticLink hi (parent lo) (calcStaticLink lo e)
 
-fieldVar :: Exp -> Exp -> State Temp.TempState Exp
-fieldVar = undefined
+fieldVar :: Exp -> Exp -> State Temp.TempState Exp --tmp
+fieldVar var rcd = do
+        var' <- unEx var
+        rcd' <- unEx rcd
+        callExp (Temp.namedLabel "getItem") [var, rcd]
 
-subscriptVar :: Exp -> Exp -> State Temp.TempState Exp
+subscriptVar :: Exp -> Exp -> State Temp.TempState Exp --tmp
 subscriptVar var idx = do
         var' <- unEx var
         idx' <- unEx idx
-        r <- Temp.newTemp
-        y <- callExp (Temp.namedLabel "getItem") [var, idx]
-        return undefined -- Ex $ T.ESEQ (T.MOVE (T.TEMP r) y) (T.TEMP r)
+        callExp (Temp.namedLabel "getItem") [var, idx] -- Ex $ T.ESEQ (T.MOVE (T.TEMP r) y) (T.TEMP r)
 
 nilExp :: Exp
 nilExp = Ex $ T.CONST 0
@@ -227,6 +234,3 @@ letExp es body = do
 
 arrayExp :: Exp -> Exp -> State Temp.TempState Exp
 arrayExp size init = callExp (Temp.namedLabel "initArray") [size, init]
-
-calcStaticLink :: T.Exp -> T.Exp
-calcStaticLink e = T.MEM (T.BINOP T.PLUS e (T.CONST (-3))) --tmp 3

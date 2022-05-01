@@ -86,8 +86,8 @@ basicBlocks stms = do
                 blocks (head@(T.LABEL _) : tail, blist) = next (tail, [head])
                     where
                         next :: ([T.Stm], [T.Stm]) -> State Temp.TempState [[T.Stm]]
-                        next (s@(T.JUMP{}) : rest, thisblock) = endblock (rest, s : thisblock)
-                        next (s@(T.CJUMP{}) : rest, thisblock) = endblock (rest, s : thisblock)
+                        next (s@T.JUMP{} : rest, thisblock) = endblock (rest, s : thisblock)
+                        next (s@T.CJUMP{} : rest, thisblock) = endblock (rest, s : thisblock)
                         next (stms@(T.LABEL lab : _), thisblock) = next (T.JUMP (T.NAME lab) [lab] : stms, thisblock)
                         next (s : rest, thisblock) = next (rest, s : thisblock)
                         next ([], thisblock) = next ([T.JUMP (T.NAME done) [done]], thisblock)

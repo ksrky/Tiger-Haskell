@@ -18,6 +18,7 @@ main = do
         args <- getArgs
         case args of
                 [] -> repl
+                "all" : _ -> processFile [1 .. 49]
                 ns -> processFile (map read ns)
 
 repl :: IO ()
@@ -36,10 +37,12 @@ processFile [] = return ()
 processFile (n : ns) = do
         let fname = "testcases/test" ++ show n ++ ".tig"
         contents <- readFile fname
+        putStrLn $ "----------" ++ fname ++ "----------"
         process (SS baseVEnv baseTEnv Outermost initState) contents
+        putStrLn ""
         processFile ns
 
 process :: SemantState -> String -> IO ()
 process st input = case runAlex input parse of
-        Left err -> print err
+        Left err -> putStrLn err
         Right exp -> print $ transExp st exp
