@@ -13,10 +13,6 @@ $alpha = [a-zA-Z]
 @string = \" ($printable # \")* \"
 @decimal = $digit+
 
-@reservedid = while | for | to | break | let | in | end | function | var
-            | type | array | if | then | else | do | of | nil 
-@reservedop = \+ | \- | \* | \/
-
 tokens :-
 
 <0,comment> $white+             ;

@@ -4,13 +4,14 @@ module Syntax.Lexer where
 import Syntax.Token
 }
 
-%wrapper "monadUserState"
+%wrapper "monad"
 
 $digit = 0-9
 $alpha = [a-zA-Z]
 
 @id = $alpha [$alpha $digit \_ \']*
 @string = \" ($printable # \")* \"
+@decimal = $digit+
 
 tokens :-
 
@@ -51,7 +52,7 @@ tokens :-
 <0> \+              { symbol SymPlus }
 <0> \-              { symbol SymMinus }
 <0> \*              { symbol SymTimes }
-<0> \/              { symbol SymDevide }
+<0> \/              { symbol SymDivide }
 <0> \=              { symbol SymEq }
 <0> \<\>            { symbol SymNeq }
 <0> \<              { symbol SymLt }
@@ -63,7 +64,7 @@ tokens :-
 <0> \:=             { symbol SymAssign }
 
 <0> @id             { ident }
-<0> $digit+         { int }
+<0> @decimal        { int }
 <0> @string         { string }
 
 {
@@ -76,7 +77,7 @@ data Token
     = TokKeyword (Keyword, AlexPosn)
     | TokSymbol (Symbol, AlexPosn)
     | TokId (String, AlexPosn)
-    | TokInt (Integer, AlexPosn)
+    | TokInt (Int, AlexPosn)
     | TokString (String, AlexPosn)
     | TokEof
     deriving (Eq, Show)
@@ -101,9 +102,4 @@ string = \(pos,_,_,str) len -> return $ TokString (unquot $ take len str, pos)
 
 alexEOF :: Alex Token
 alexEOF = return TokEof
-
-data AlexUserState = AlexUserState {}
-
-alexInitUserState :: AlexUserState
-alexInitUserState = AlexUserState {}
 }
