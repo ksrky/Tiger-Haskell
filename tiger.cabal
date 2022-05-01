@@ -24,25 +24,6 @@ source-repository head
   location: https://github.com/ksrky/tiger
 
 library
-  exposed-modules:
-      Frame.Frame
-      Frame.X64Frame
-      IR.Canon
-      IR.Tree
-      Semant.Env
-      Semant.Error
-      Semant.FindEscape
-      Semant.Semant
-      Semant.Symbol
-      Semant.Translate
-      Semant.Types
-      Syntax.Absyn
-      Syntax.Absyn.Show
-      Syntax.Absyn.Utils
-      Syntax.Lexer
-      Syntax.Parser
-      Syntax.Token
-      Temp.Temp
   other-modules:
       Paths_tiger
   hs-source-dirs:
@@ -54,16 +35,19 @@ library
       array
     , base >=4.7 && <5
     , containers
+    , haskeline
     , hspec
     , mtl
   default-language: Haskell2010
 
-executable tiger-exe
+executable chapter2
   main-is: Main.hs
   other-modules:
+      Syntax.Lexer
+      Syntax.Token
       Paths_tiger
   hs-source-dirs:
-      app
+      src/chapter2
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-tools:
       alex
@@ -72,20 +56,21 @@ executable tiger-exe
       array
     , base >=4.7 && <5
     , containers
+    , haskeline
     , hspec
     , mtl
     , tiger
   default-language: Haskell2010
 
-test-suite tiger-test
-  type: exitcode-stdio-1.0
-  main-is: Spec.hs
+executable chapter3
+  main-is: Main.hs
   other-modules:
-      ParserSpec
-      SemantSpec
+      Syntax.Lexer
+      Syntax.Parser
+      Syntax.Token
       Paths_tiger
   hs-source-dirs:
-      test
+      src/chapter3
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-tools:
       alex
@@ -94,6 +79,31 @@ test-suite tiger-test
       array
     , base >=4.7 && <5
     , containers
+    , haskeline
+    , hspec
+    , mtl
+    , tiger
+  default-language: Haskell2010
+
+executable chapter4
+  main-is: Main.hs
+  other-modules:
+      Syntax.Absyn
+      Syntax.Lexer
+      Syntax.Parser
+      Syntax.Token
+      Paths_tiger
+  hs-source-dirs:
+      src/chapter4
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-tools:
+      alex
+    , happy
+  build-depends:
+      array
+    , base >=4.7 && <5
+    , containers
+    , haskeline
     , hspec
     , mtl
     , tiger
