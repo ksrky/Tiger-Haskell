@@ -282,6 +282,8 @@ executable chapter8
 executable chapter9
   main-is: Main.hs
   other-modules:
+      Compiler.Assem
+      Compiler.Codegen
       Frame.Frame
       Frame.X64Frame
       IR.Canon
