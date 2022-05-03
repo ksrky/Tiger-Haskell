@@ -1,8 +1,8 @@
 module Frame.X64Frame where
 
+import qualified Common.Temp as Temp
 import qualified Frame.Frame as Frame
 import qualified IR.Tree as T
-import qualified Temp.Temp as Temp
 
 import Control.Monad.State
 
@@ -32,14 +32,14 @@ newFrame lab escs = do
         gets (Frame lab fmls [] . Temp.temps)
     where
         calcformals :: (Bool, Int) -> State Temp.TempState Frame.Access
-        calcformals (True, n) = return (Frame.InFrame (-n))
+        calcformals (True, n) = return (Frame.InFrame (- n))
         calcformals (False, _) = do
                 Frame.InReg <$> Temp.newTemp
 
 allocLocal :: Frame -> Bool -> State Temp.TempState Frame
 allocLocal frm True = do
         let locs = locals frm
-            loc = Frame.InFrame (-length locs)
+            loc = Frame.InFrame (- length locs)
         return frm{locals = locs ++ [loc]}
 allocLocal frm False = do
         m <- Temp.newTemp

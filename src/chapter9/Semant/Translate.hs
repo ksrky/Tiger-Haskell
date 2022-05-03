@@ -1,9 +1,9 @@
 module Semant.Translate where
 
+import qualified Common.Temp as Temp
 import qualified Frame.Frame as Frame
 import qualified Frame.X64Frame as X64Frame
 import qualified IR.Tree as T
-import qualified Temp.Temp as Temp
 
 import Control.Monad.State
 

@@ -1,6 +1,6 @@
-module Temp.Temp where
+module Common.Temp where
 
-import qualified Semant.Symbol as Symbol
+import qualified Common.Symbol as Symbol
 
 import Control.Monad.State (MonadState (state), State)
 

@@ -1,6 +1,6 @@
 module Semant.Types where
 
-import Semant.Symbol (Symbol)
+import Common.Symbol (Symbol)
 import qualified Syntax.Absyn as Absyn
 
 data Ty

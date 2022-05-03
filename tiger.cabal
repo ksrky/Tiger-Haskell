@@ -282,6 +282,8 @@ executable chapter8
 executable chapter9
   main-is: Main.hs
   other-modules:
+      Common.Symbol
+      Common.Temp
       Compiler.Assem
       Compiler.Codegen
       Frame.Frame
@@ -292,7 +294,6 @@ executable chapter9
       Semant.Error
       Semant.FindEscape
       Semant.Semant
-      Semant.Symbol
       Semant.Translate
       Semant.Types
       Syntax.Absyn
@@ -301,7 +302,6 @@ executable chapter9
       Syntax.Lexer
       Syntax.Parser
       Syntax.Token
-      Temp.Temp
       Paths_tiger
   hs-source-dirs:
       src/chapter9
