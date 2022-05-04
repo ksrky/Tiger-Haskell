@@ -23,6 +23,9 @@ instance Show ExpTy where
 
 data SemantState = SS {venv :: VEnv, tenv :: TEnv, level :: TL.Level, tstate :: Temp.TempState}
 
+initState :: SemantState
+initState = SS E.baseVEnv E.baseTEnv TL.topLevel Temp.emptyState
+
 match :: T.Ty -> T.Ty -> TEnv -> A.Pos -> Either Err.Error ()
 match lty rty tenv pos = do
         lty' <- actualTy lty
@@ -310,5 +313,5 @@ transTy' checked (name, pos) tenv = case S.look tenv name of
 
 transProg :: A.Exp -> Either Err.Error ()
 transProg exp = do
-        transExp (SS E.baseVEnv E.baseTEnv TL.Outermost Temp.initState) exp
+        transExp initState exp
         return ()

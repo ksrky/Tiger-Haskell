@@ -2,6 +2,7 @@ module Main where
 
 import Common.Temp
 import Semant.Env
+import Semant.FindEscape
 import Semant.Semant
 import Semant.Translate
 import Syntax.Lexer
@@ -22,7 +23,7 @@ main = do
                 ns -> processFile (map read ns)
 
 repl :: IO ()
-repl = runInputT defaultSettings (loop (SS baseVEnv baseTEnv Outermost initState))
+repl = runInputT defaultSettings (loop initState)
     where
         loop st = do
                 minput <- getInputLine ">> "
@@ -38,11 +39,18 @@ processFile (n : ns) = do
         let fname = "testcases/test" ++ show n ++ ".tig"
         contents <- readFile fname
         putStrLn $ "----------" ++ fname ++ "----------"
-        process (SS baseVEnv baseTEnv Outermost initState) contents
+        process initState contents
         putStrLn ""
         processFile ns
 
 process :: SemantState -> String -> IO ()
 process st input = case runAlex input parse of
         Left err -> putStrLn err
-        Right exp -> print $ transExp st exp
+        Right exp -> do
+                let exp' = findEscape exp
+                case transExp st exp' of
+                        Left err -> print err
+                        Right (ExpTy expr _) -> case expr of
+                                Ex e -> print e
+                                Nx s -> print s
+                                Cx _ -> error ""

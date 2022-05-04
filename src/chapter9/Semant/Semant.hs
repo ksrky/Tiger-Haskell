@@ -23,6 +23,9 @@ instance Show ExpTy where
 
 data SemantState = SS {venv :: VEnv, tenv :: TEnv, level :: TL.Level, tstate :: Temp.TempState}
 
+initState :: SemantState
+initState = SS E.baseVEnv E.baseTEnv TL.topLevel Temp.emptyState
+
 match :: T.Ty -> T.Ty -> TEnv -> A.Pos -> Either Err.Error ()
 match lty rty tenv pos = do
         lty' <- actualTy lty
@@ -64,7 +67,7 @@ transVar st@(SS venv tenv lev tst) = trvar
                                 ExpTy idx ty'' <- transExp st exp
                                 match T.INT ty'' tenv pos
                                 let expr = TL.subscriptVar var' idx `evalState` tst
-                                return $ ExpTy undefined ty'
+                                return $ ExpTy expr ty'
                         _ -> Err.returnErr_ (Err.WrongType "array type" (show var)) pos
 
 transExp :: SemantState -> A.Exp -> Either Err.Error ExpTy
@@ -75,7 +78,7 @@ transExp st@(SS venv tenv _ tst) = trexp
         trexp A.NilExp = return $ ExpTy TL.nilExp T.NIL
         trexp (A.IntExp i) = return $ ExpTy (TL.intExp i) T.INT
         trexp (A.StringExp (s, p)) = do
-                let (expr, _) = evalState (TL.stringExp s) tst --tmp
+                let (expr, _) = TL.stringExp s `evalState` tst --tmp
                 return $ ExpTy expr T.STRING
         trexp (A.CallExp fun args pos) = case S.look venv fun of
                 Nothing -> Err.returnErr_ (Err.UnknownIdentifier fun) pos
@@ -310,5 +313,5 @@ transTy' checked (name, pos) tenv = case S.look tenv name of
 
 transProg :: A.Exp -> Either Err.Error ()
 transProg exp = do
-        transExp (SS E.baseVEnv E.baseTEnv TL.Outermost Temp.initState) exp
+        transExp initState exp
         return ()

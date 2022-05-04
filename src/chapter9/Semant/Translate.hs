@@ -25,6 +25,12 @@ newLevel par fmls = do
         frm <- Frame.newFrame lab fmls
         return (Level par lab (True : fmls) frm) -- ?
 
+topLevel :: Level
+topLevel = Level Outermost lab [True] frm
+    where
+        lab = Temp.namedLabel "main"
+        frm = Frame.newFrame lab [] `evalState` Temp.emptyState
+
 allocLocal :: Level -> Bool -> State Temp.TempState Access
 allocLocal lev@Level{frame = frm} esc = do
         frm' <- Frame.allocLocal frm esc

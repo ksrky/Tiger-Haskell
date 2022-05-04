@@ -22,7 +22,7 @@ main = do
                 ns -> processFile (map read ns)
 
 repl :: IO ()
-repl = runInputT defaultSettings (loop (SS baseVEnv baseTEnv Outermost initState))
+repl = runInputT defaultSettings (loop initState)
     where
         loop st = do
                 minput <- getInputLine ">> "
@@ -38,7 +38,7 @@ processFile (n : ns) = do
         let fname = "testcases/test" ++ show n ++ ".tig"
         contents <- readFile fname
         putStrLn $ "----------" ++ fname ++ "----------"
-        process (SS baseVEnv baseTEnv Outermost initState) contents
+        process initState contents
         putStrLn ""
         processFile ns
 
