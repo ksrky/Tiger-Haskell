@@ -1,6 +1,6 @@
 module IR.Tree where
 
-import qualified Temp.Temp as Temp
+import qualified Common.Temp as Temp
 import Prelude hiding (EQ, GT, LT)
 
 type Size = Int

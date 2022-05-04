@@ -1,6 +1,6 @@
 module Semant.FindEscape where
 
-import qualified Semant.Symbol as S
+import qualified Common.Symbol as S
 import qualified Syntax.Absyn as A
 
 import Control.Monad.State

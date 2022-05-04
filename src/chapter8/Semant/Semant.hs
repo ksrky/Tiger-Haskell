@@ -1,13 +1,13 @@
 module Semant.Semant where
 
+import qualified Common.Symbol as S
+import qualified Common.Temp as Temp
 import qualified Semant.Env as E
 import qualified Semant.Error as Err
-import qualified Semant.Symbol as S
 import qualified Semant.Translate as TL
 import qualified Semant.Types as T
 import qualified Syntax.Absyn as A
 import qualified Syntax.Absyn.Utils as A
-import qualified Temp.Temp as Temp
 
 import Control.Monad.State
 import Data.Maybe (isJust)

@@ -1,7 +1,7 @@
 module IR.Canon where
 
 import qualified IR.Tree as T
-import qualified Temp.Temp as Temp
+import qualified Common.Temp as Temp
 
 import Control.Monad.State
 import qualified Data.Map.Strict as M

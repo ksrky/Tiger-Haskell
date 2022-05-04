@@ -244,6 +244,8 @@ executable chapter7
 executable chapter8
   main-is: Main.hs
   other-modules:
+      Common.Symbol
+      Common.Temp
       Frame.Frame
       Frame.X64Frame
       IR.Canon
@@ -252,7 +254,6 @@ executable chapter8
       Semant.Error
       Semant.FindEscape
       Semant.Semant
-      Semant.Symbol
       Semant.Translate
       Semant.Types
       Syntax.Absyn
@@ -261,7 +262,6 @@ executable chapter8
       Syntax.Lexer
       Syntax.Parser
       Syntax.Token
-      Temp.Temp
       Paths_tiger
   hs-source-dirs:
       src/chapter8

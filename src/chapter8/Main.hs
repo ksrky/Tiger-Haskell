@@ -1,11 +1,11 @@
 module Main where
 
+import Common.Temp
 import Semant.Env
 import Semant.Semant
 import Semant.Translate
 import Syntax.Lexer
 import Syntax.Parser
-import Temp.Temp
 
 import Control.Monad.Trans
 

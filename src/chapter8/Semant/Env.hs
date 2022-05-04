@@ -1,9 +1,9 @@
 module Semant.Env where
 
-import qualified Semant.Symbol as S
+import qualified Common.Symbol as S
+import qualified Common.Temp as Temp
 import qualified Semant.Translate as TL
 import qualified Semant.Types as T
-import qualified Temp.Temp as Temp
 
 data EnvEntry
         = VarEntry {access :: TL.Access, ty :: T.Ty}
