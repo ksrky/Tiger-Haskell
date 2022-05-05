@@ -11,7 +11,6 @@ import qualified Syntax.Absyn.Utils as A
 
 import Control.Monad.State
 import Data.Maybe (isJust)
-import Semant.Translate (assignExp)
 
 type VEnv = S.Table E.EnvEntry
 type TEnv = S.Table T.Ty
@@ -159,7 +158,7 @@ transExp st@(SS venv tenv _ tst) = trexp
                 ExpTy left lty <- transVar st v
                 ExpTy right rty <- trexp e
                 match lty rty tenv pos
-                let expr = assignExp left right `evalState` tst
+                let expr = TL.assignExp left right `evalState` tst
                 return $ ExpTy expr T.UNIT
         trexp (A.IfExp test then' melse pos) = do
                 ExpTy test' test_ty <- trexp test

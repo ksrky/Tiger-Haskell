@@ -1,9 +1,5 @@
 # Tiger in Haskell - Chapter 5
 
-```command
-$ stack build
-```
-
 ## REPL
 ```command
 $ stack exec chapter7

@@ -20,10 +20,10 @@ data ExpTy = ExpTy {exptyExp :: TL.Exp, exptyTy :: T.Ty}
 instance Show ExpTy where
         show (ExpTy _ ty) = show ty
 
-data SemantState = SS {venv :: VEnv, tenv :: TEnv, level :: TL.Level, tstate :: Temp.TempState}
+data SemantState = SS {venv :: VEnv, tenv :: TEnv}
 
 initState :: SemantState
-initState = SS E.baseVEnv E.baseTEnv TL.topLevel Temp.emptyState
+initState = SS E.baseVEnv E.baseTEnv
 
 match :: T.Ty -> T.Ty -> TEnv -> A.Pos -> Either Err.Error ()
 match lty rty tenv pos = do
@@ -66,7 +66,7 @@ transVar st@(SS venv tenv lev tst) = trvar
                                 ExpTy idx ty'' <- transExp st exp
                                 match T.INT ty'' tenv pos
                                 let expr = TL.subscriptVar var' idx `evalState` tst
-                                return $ ExpTy undefined ty'
+                                return $ ExpTy expr ty'
                         _ -> Err.returnErr_ (Err.WrongType "array type" (show var)) pos
 
 transExp :: SemantState -> A.Exp -> Either Err.Error ExpTy
@@ -77,7 +77,7 @@ transExp st@(SS venv tenv _ tst) = trexp
         trexp A.NilExp = return $ ExpTy TL.nilExp T.NIL
         trexp (A.IntExp i) = return $ ExpTy (TL.intExp i) T.INT
         trexp (A.StringExp (s, p)) = do
-                let (expr, _) = evalState (TL.stringExp s) tst --tmp
+                let (expr, _) = TL.stringExp s `evalState` tst --tmp
                 return $ ExpTy expr T.STRING
         trexp (A.CallExp fun args pos) = case S.look venv fun of
                 Nothing -> Err.returnErr_ (Err.UnknownIdentifier fun) pos
@@ -158,7 +158,7 @@ transExp st@(SS venv tenv _ tst) = trexp
                 ExpTy left lty <- transVar st v
                 ExpTy right rty <- trexp e
                 match lty rty tenv pos
-                let expr = TL.assignExp left right `evalState` tst
+                let expr = assignExp left right `evalState` tst
                 return $ ExpTy expr T.UNIT
         trexp (A.IfExp test then' melse pos) = do
                 ExpTy test' test_ty <- trexp test
