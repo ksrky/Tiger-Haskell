@@ -1,3 +1,3 @@
-# Changelog for tiger
+# Changelog for Tiger
 
 ## Unreleased changes
