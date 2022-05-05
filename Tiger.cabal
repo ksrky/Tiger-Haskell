@@ -4,11 +4,11 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 
-name:           tiger
+name:           Tiger
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/ksrky/tiger#readme>
-homepage:       https://github.com/ksrky/tiger#readme
-bug-reports:    https://github.com/ksrky/tiger/issues
+description:    Please see the README on GitHub at <https://github.com/ksrky/Tiger#readme>
+homepage:       https://github.com/ksrky/Tiger#readme
+bug-reports:    https://github.com/ksrky/Tiger/issues
 author:         ksrk
 maintainer:     example@example.com
 copyright:      2022 ksrk
@@ -21,11 +21,11 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/ksrky/tiger
+  location: https://github.com/ksrky/Tiger
 
 library
   other-modules:
-      Paths_tiger
+      Paths_Tiger
   hs-source-dirs:
       src
   build-tools:
@@ -45,7 +45,7 @@ executable chapter2
   other-modules:
       Syntax.Lexer
       Syntax.Token
-      Paths_tiger
+      Paths_Tiger
   hs-source-dirs:
       src/chapter2
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
@@ -59,7 +59,6 @@ executable chapter2
     , haskeline
     , hspec
     , mtl
-    , tiger
   default-language: Haskell2010
 
 executable chapter3
@@ -68,7 +67,7 @@ executable chapter3
       Syntax.Lexer
       Syntax.Parser
       Syntax.Token
-      Paths_tiger
+      Paths_Tiger
   hs-source-dirs:
       src/chapter3
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
@@ -82,7 +81,6 @@ executable chapter3
     , haskeline
     , hspec
     , mtl
-    , tiger
   default-language: Haskell2010
 
 executable chapter4
@@ -92,7 +90,7 @@ executable chapter4
       Syntax.Lexer
       Syntax.Parser
       Syntax.Token
-      Paths_tiger
+      Paths_Tiger
   hs-source-dirs:
       src/chapter4
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
@@ -106,7 +104,6 @@ executable chapter4
     , haskeline
     , hspec
     , mtl
-    , tiger
   default-language: Haskell2010
 
 executable chapter5a
@@ -122,7 +119,7 @@ executable chapter5a
       Syntax.Lexer
       Syntax.Parser
       Syntax.Token
-      Paths_tiger
+      Paths_Tiger
   hs-source-dirs:
       src/chapter5a
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
@@ -136,7 +133,6 @@ executable chapter5a
     , haskeline
     , hspec
     , mtl
-    , tiger
   default-language: Haskell2010
 
 executable chapter5b
@@ -152,7 +148,7 @@ executable chapter5b
       Syntax.Lexer
       Syntax.Parser
       Syntax.Token
-      Paths_tiger
+      Paths_Tiger
   hs-source-dirs:
       src/chapter5b
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
@@ -166,7 +162,6 @@ executable chapter5b
     , haskeline
     , hspec
     , mtl
-    , tiger
   default-language: Haskell2010
 
 executable chapter6
@@ -187,7 +182,7 @@ executable chapter6
       Syntax.Parser
       Syntax.Token
       Temp.Temp
-      Paths_tiger
+      Paths_Tiger
   hs-source-dirs:
       src/chapter6
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
@@ -201,7 +196,6 @@ executable chapter6
     , haskeline
     , hspec
     , mtl
-    , tiger
   default-language: Haskell2010
 
 executable chapter7
@@ -224,7 +218,7 @@ executable chapter7
       Syntax.Parser
       Syntax.Token
       Temp.Temp
-      Paths_tiger
+      Paths_Tiger
   hs-source-dirs:
       src/chapter7
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
@@ -238,7 +232,6 @@ executable chapter7
     , haskeline
     , hspec
     , mtl
-    , tiger
   default-language: Haskell2010
 
 executable chapter8
@@ -262,7 +255,7 @@ executable chapter8
       Syntax.Lexer
       Syntax.Parser
       Syntax.Token
-      Paths_tiger
+      Paths_Tiger
   hs-source-dirs:
       src/chapter8
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
@@ -276,7 +269,6 @@ executable chapter8
     , haskeline
     , hspec
     , mtl
-    , tiger
   default-language: Haskell2010
 
 executable chapter9
@@ -302,7 +294,7 @@ executable chapter9
       Syntax.Lexer
       Syntax.Parser
       Syntax.Token
-      Paths_tiger
+      Paths_Tiger
   hs-source-dirs:
       src/chapter9
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
@@ -316,5 +308,4 @@ executable chapter9
     , haskeline
     , hspec
     , mtl
-    , tiger
   default-language: Haskell2010

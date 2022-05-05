@@ -1,4 +1,4 @@
-name:                tiger
+name:                Tiger
 version:             0.1.0.0
 github:              "ksrky/Tiger"
 license:             BSD3
@@ -42,8 +42,6 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    dependencies:
-    - tiger
   chapter3:
     main:                Main.hs
     source-dirs:         src/chapter3
@@ -51,8 +49,6 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    dependencies:
-    - tiger
   chapter4:
     main:                Main.hs
     source-dirs:         src/chapter4
@@ -60,8 +56,6 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    dependencies:
-    - tiger
   chapter5a:
     main:                Main.hs
     source-dirs:         src/chapter5a
@@ -69,8 +63,6 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    dependencies:
-    - tiger
   chapter5b:
     main:                Main.hs
     source-dirs:         src/chapter5b
@@ -78,8 +70,6 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    dependencies:
-    - tiger
   chapter6:
     main:                Main.hs
     source-dirs:         src/chapter6
@@ -87,8 +77,6 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    dependencies:
-    - tiger
   chapter7:
     main:                Main.hs
     source-dirs:         src/chapter7
@@ -96,8 +84,6 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    dependencies:
-    - tiger
   chapter8:
     main:                Main.hs
     source-dirs:         src/chapter8
@@ -105,8 +91,6 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    dependencies:
-    - tiger
   chapter9:
     main:                Main.hs
     source-dirs:         src/chapter9
@@ -114,5 +98,3 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    dependencies:
-    - tiger
