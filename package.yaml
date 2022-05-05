@@ -1,6 +1,6 @@
 name:                tiger
 version:             0.1.0.0
-github:              "ksrky/tiger"
+github:              "ksrky/Tiger"
 license:             BSD3
 author:              "ksrk"
 maintainer:          "example@example.com"
@@ -21,7 +21,7 @@ build-tools:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/ksrky/tiger#readme>
+description:         Please see the README on GitHub at <https://github.com/ksrky/Tiger#readme>
 
 dependencies:
 - base >= 4.7 && < 5
