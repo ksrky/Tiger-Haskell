@@ -27,6 +27,7 @@ dependencies:
 - base >= 4.7 && < 5
 - array
 - containers
+- text
 - mtl
 - hspec
 - haskeline
@@ -105,3 +106,7 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    dependencies:
+    - bytestring
+    - llvm-hs-pure
+    - llvm-hs-pretty

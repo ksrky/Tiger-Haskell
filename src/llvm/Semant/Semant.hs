@@ -4,7 +4,6 @@ import qualified Common.Symbol as S
 import qualified Common.Temp as Temp
 import qualified Semant.Env as E
 import qualified Semant.Error as Err
-import qualified Semant.Translate as TL
 import qualified Semant.Types as T
 import qualified Syntax.Absyn as A
 import qualified Syntax.Absyn.Utils as A
@@ -15,7 +14,7 @@ import Data.Maybe (isJust)
 type VEnv = S.Table E.EnvEntry
 type TEnv = S.Table T.Ty
 
-data ExpTy = ExpTy {exptyExp :: TL.Exp, exptyTy :: T.Ty}
+data ExpTy = ExpTy {exptyExp :: (), exptyTy :: T.Ty}
 
 instance Show ExpTy where
         show (ExpTy _ ty) = show ty

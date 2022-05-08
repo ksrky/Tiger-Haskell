@@ -1,5 +1,18 @@
 # Tiger in Haskell
 
+## Build
+### Building with Stack
+```command
+$ stack build
+$ stack exec <executable> <option>
+```
+
+### Building with Cabal
+```command
+$ cabal new-build
+$ cabal run <executable> <option>
+```
+
 ## Part I
 
 * Chapter 2
