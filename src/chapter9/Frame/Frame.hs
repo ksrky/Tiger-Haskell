@@ -30,4 +30,6 @@ exp (InReg t) _ = T.TEMP t
 
 -- externalCall :: String -> [T.Exp] -> T.Exp
 -- externalCall s = T.CALL (T.NAME $ Temp.namedLabel s)
--- procExit1 :: (Frame, T.Stm) -> T.Stm
+
+procEntryExit1 :: FrameBase f => (f, T.Stm) -> T.Stm
+procEntryExit1 (frame, body) = body
