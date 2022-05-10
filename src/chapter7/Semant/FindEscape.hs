@@ -1,6 +1,6 @@
 module Semant.FindEscape where
 
-import qualified Semant.Symbol as S
+import qualified Common.Symbol as S
 import qualified Syntax.Absyn as A
 
 import Control.Monad.State
@@ -8,8 +8,8 @@ import Control.Monad.State
 type Depth = Int
 type EscEnv = S.Table (Depth, Bool)
 
-findEscape :: A.Exp -> (A.Exp, EscEnv)
-findEscape exp = runState (traverseExp 0 exp) S.empty
+findEscape :: A.Exp -> A.Exp
+findEscape exp = evalState (traverseExp 0 exp) S.empty
 
 traverseVar :: Depth -> A.Var -> State EscEnv A.Var
 traverseVar dep var = do
@@ -21,7 +21,7 @@ traverseVar dep var = do
                                         put $ S.enter eenv sym (d, True)
                                         return var
                                 | otherwise -> return var
-                        Nothing -> undefined
+                        Nothing -> return var -- error
                 A.FieldVar v sym p -> do
                         var' <- traverseVar dep v
                         return $ A.FieldVar var' sym p
@@ -76,7 +76,7 @@ traverseExp dep = traExp
                 eenv' <- get
                 let esc' = case S.look eenv' name of
                         Just (d, e) -> e
-                        Nothing -> undefined
+                        Nothing -> True -- error
                 return $ A.ForExp name esc' lo' hi' body' pos
         traExp (A.LetExp decs body pos) = do
                 eenv <- get

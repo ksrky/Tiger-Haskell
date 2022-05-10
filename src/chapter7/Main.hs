@@ -1,11 +1,12 @@
 module Main where
 
+import Common.Temp
 import Semant.Env
+import Semant.FindEscape
 import Semant.Semant
 import Semant.Translate
 import Syntax.Lexer
 import Syntax.Parser
-import Temp.Temp
 
 import Control.Monad.Trans
 
@@ -18,10 +19,11 @@ main = do
         args <- getArgs
         case args of
                 [] -> repl
+                "all" : _ -> processFile [1 .. 49]
                 ns -> processFile (map read ns)
 
 repl :: IO ()
-repl = runInputT defaultSettings (loop (SS baseVEnv baseTEnv Outermost initState))
+repl = runInputT defaultSettings (loop initState)
     where
         loop st = do
                 minput <- getInputLine ">> "
@@ -36,10 +38,19 @@ processFile [] = return ()
 processFile (n : ns) = do
         let fname = "testcases/test" ++ show n ++ ".tig"
         contents <- readFile fname
-        process (SS baseVEnv baseTEnv Outermost initState) contents
+        putStrLn $ "----------" ++ fname ++ "----------"
+        process initState contents
+        putStrLn ""
         processFile ns
 
 process :: SemantState -> String -> IO ()
 process st input = case runAlex input parse of
-        Left err -> print err
-        Right exp -> print $ transExp st exp
+        Left err -> putStrLn err
+        Right exp -> do
+                let exp' = findEscape exp
+                case transExp st exp' of
+                        Left err -> print err
+                        Right (ExpTy expr _) -> case expr of
+                                Ex e -> print e
+                                Nx s -> print s
+                                Cx _ -> error ""

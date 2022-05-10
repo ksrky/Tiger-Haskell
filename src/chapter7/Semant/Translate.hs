@@ -1,9 +1,9 @@
 module Semant.Translate where
 
+import qualified Common.Temp as Temp
 import qualified Frame.Frame as Frame
 import qualified Frame.X64Frame as X64Frame
 import qualified IR.Tree as T
-import qualified Temp.Temp as Temp
 
 import Control.Monad.State
 
@@ -24,6 +24,12 @@ newLevel par fmls = do
         lab <- Temp.newLabel
         frm <- Frame.newFrame lab fmls
         return (Level par lab (True : fmls) frm) -- ?
+
+topLevel :: Level
+topLevel = Level Outermost lab [True] frm
+    where
+        lab = Temp.namedLabel "main"
+        frm = Frame.newFrame lab [] `evalState` Temp.emptyState
 
 allocLocal :: Level -> Bool -> State Temp.TempState Access
 allocLocal lev@Level{frame = frm} esc = do
@@ -82,26 +88,33 @@ mkseq [] = T.EXP $ T.CONST 0
 mkseq [stm] = stm
 mkseq (stm : stms) = T.SEQ stm (mkseq stms)
 
-simpleVar :: (Access, Level) -> Exp
-simpleVar (Access lev_dec acs, lev_use) = Ex $ Frame.exp acs exp
+calcStaticLink :: Level -> T.Exp -> T.Exp
+calcStaticLink lev e = T.MEM (T.BINOP T.PLUS e (T.CONST (par - chi)))
     where
-        exp = followStaticLink lev_dec lev_use (T.TEMP $ Frame.fp $ frame lev_use)
-        followStaticLink :: Level -> Level -> T.Exp -> T.Exp
-        -- followStaticLink hi Outermost e = undefined
-        followStaticLink hi lo e
+        chi = Frame.fp $ frame lev
+        par = Frame.fp $ frame $ parent lev
+
+simpleVar :: (Access, Level) -> Exp
+simpleVar (Access lev_dec acs, lev_use) = Ex $ Frame.exp acs (Frame.exp acs expr)
+    where
+        expr = walkStaticLink lev_dec lev_use (T.TEMP $ Frame.fp $ frame lev_use)
+        walkStaticLink :: Level -> Level -> T.Exp -> T.Exp
+        -- walkStaticLink hi Outermost e = undefined
+        walkStaticLink hi lo e
                 | hi == lo = e
-                | otherwise = followStaticLink hi (parent lo) (Frame.staticLink e)
+                | otherwise = walkStaticLink hi (parent lo) (calcStaticLink lo e)
 
-fieldVar :: Exp -> Exp -> State Temp.TempState Exp
-fieldVar = undefined
+fieldVar :: Exp -> Exp -> State Temp.TempState Exp --tmp
+fieldVar var rcd = do
+        var' <- unEx var
+        rcd' <- unEx rcd
+        callExp (Temp.namedLabel "getItem") [var, rcd]
 
-subscriptVar :: Exp -> Exp -> State Temp.TempState Exp
+subscriptVar :: Exp -> Exp -> State Temp.TempState Exp --tmp
 subscriptVar var idx = do
         var' <- unEx var
         idx' <- unEx idx
-        r <- Temp.newTemp
-        y <- callExp (Temp.namedLabel "getItem") [var, idx]
-        return undefined -- Ex $ T.ESEQ (T.MOVE (T.TEMP r) y) (T.TEMP r)
+        callExp (Temp.namedLabel "getItem") [var, idx] -- Ex $ T.ESEQ (T.MOVE (T.TEMP r) y) (T.TEMP r)
 
 nilExp :: Exp
 nilExp = Ex $ T.CONST 0

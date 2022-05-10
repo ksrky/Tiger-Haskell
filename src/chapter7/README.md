@@ -1,12 +1,15 @@
 # Tiger in Haskell - Chapter 5
 
 ## REPL
+
 ```command
-$ stack exec chapter7
+$ stack exec chapter9
 ```
 
 ## File test
+
 ```command
-$ stack exec chapter7 <file_number>
+$ stack exec chapter9 <args>
 ```
-where *file_number* is 1 to 49
+
+where _args_ := all | [*file_number*]\*

@@ -1,6 +1,6 @@
-module Temp.Temp where
+module Common.Temp where
 
-import qualified Semant.Symbol as Symbol
+import qualified Common.Symbol as Symbol
 
 import Control.Monad.State (MonadState (state), State)
 
@@ -9,8 +9,8 @@ type Label = Symbol.Symbol
 
 data TempState = TS {temps :: Temp, labs :: Int}
 
-initState :: TempState
-initState = TS{temps = 0, labs = 0}
+emptyState :: TempState
+emptyState = TS{temps = 0, labs = 0}
 
 newTemp :: State TempState Temp
 newTemp = state (\(TS t l) -> (t, TS (t + 1) l))

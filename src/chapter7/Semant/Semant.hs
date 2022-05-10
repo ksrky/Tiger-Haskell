@@ -1,13 +1,13 @@
 module Semant.Semant where
 
+import qualified Common.Symbol as S
+import qualified Common.Temp as Temp
 import qualified Semant.Env as E
 import qualified Semant.Error as Err
-import qualified Semant.Symbol as S
 import qualified Semant.Translate as TL
 import qualified Semant.Types as T
 import qualified Syntax.Absyn as A
 import qualified Syntax.Absyn.Utils as A
-import qualified Temp.Temp as Temp
 
 import Control.Monad.State
 import Data.Maybe (isJust)
@@ -21,6 +21,9 @@ instance Show ExpTy where
         show (ExpTy _ ty) = show ty
 
 data SemantState = SS {venv :: VEnv, tenv :: TEnv, level :: TL.Level, tstate :: Temp.TempState}
+
+initState :: SemantState
+initState = SS E.baseVEnv E.baseTEnv TL.topLevel Temp.emptyState
 
 match :: T.Ty -> T.Ty -> TEnv -> A.Pos -> Either Err.Error ()
 match lty rty tenv pos = do
@@ -40,28 +43,31 @@ match lty rty tenv pos = do
                 _ -> return ty
 
 transVar :: SemantState -> A.Var -> Either Err.Error ExpTy
-transVar st@(SS venv tenv lev _) = trvar
+transVar st@(SS venv tenv lev tst) = trvar
     where
         trvar :: A.Var -> Either Err.Error ExpTy
         trvar (A.SimpleVar sym pos) = case S.look venv sym of
                 Nothing -> Err.returnErr_ (Err.UnknownIdentifier sym) pos
                 Just (E.VarEntry acs ty) -> return $ ExpTy (TL.simpleVar (acs, lev)) ty
-                Just (E.FunEntry{}) -> Err.returnErr_ (Err.UnknownIdentifier sym) pos
-        trvar (A.FieldVar v sym pos) = do
-                ty <- exptyTy <$> trvar v
+                Just E.FunEntry{} -> Err.returnErr_ (Err.UnknownIdentifier sym) pos
+        trvar (A.FieldVar var sym pos) = do
+                ExpTy var' ty <- trvar var
                 case ty of
                         T.RECORD _ fs -> case lookup sym fs of
                                 Nothing -> Err.returnErr_ (Err.RecordFieldNotFound sym) pos
-                                Just ty' -> return $ ExpTy undefined ty'
+                                Just ty' -> do
+                                        let expr = TL.fieldVar var' var' `evalState` tst
+                                        return $ ExpTy expr ty'
                         _ -> Err.returnErr_ (Err.WrongType "record type" (show ty)) pos
-        trvar (A.SubscriptVar v exp pos) = do
-                t <- exptyTy <$> trvar v
-                case t of
+        trvar (A.SubscriptVar var exp pos) = do
+                ExpTy var' ty <- trvar var
+                case ty of
                         T.ARRAY _ ty' -> do
-                                ty'' <- exptyTy <$> transExp st exp
+                                ExpTy idx ty'' <- transExp st exp
                                 match T.INT ty'' tenv pos
-                                return $ ExpTy undefined ty'
-                        _ -> Err.returnErr_ (Err.WrongType "array type" (show v)) pos
+                                let expr = TL.subscriptVar var' idx `evalState` tst
+                                return $ ExpTy expr ty'
+                        _ -> Err.returnErr_ (Err.WrongType "array type" (show var)) pos
 
 transExp :: SemantState -> A.Exp -> Either Err.Error ExpTy
 transExp st@(SS venv tenv _ tst) = trexp
@@ -71,7 +77,7 @@ transExp st@(SS venv tenv _ tst) = trexp
         trexp A.NilExp = return $ ExpTy TL.nilExp T.NIL
         trexp (A.IntExp i) = return $ ExpTy (TL.intExp i) T.INT
         trexp (A.StringExp (s, p)) = do
-                let (expr, _) = evalState (TL.stringExp s) tst --tmp
+                let (expr, _) = TL.stringExp s `evalState` tst --tmp
                 return $ ExpTy expr T.STRING
         trexp (A.CallExp fun args pos) = case S.look venv fun of
                 Nothing -> Err.returnErr_ (Err.UnknownIdentifier fun) pos
@@ -146,7 +152,7 @@ transExp st@(SS venv tenv _ tst) = trexp
         trexp (A.SeqExp seqexp pos) = do
                 exps <- map exptyExp <$> mapM trexp seqexp
                 let expr = TL.seqExp exps `evalState` tst
-                ty <- exptyTy <$> trexp (last seqexp)
+                ty <- if null seqexp then return T.UNIT else exptyTy <$> trexp (last seqexp)
                 return $ ExpTy expr ty
         trexp (A.AssignExp v e pos) = do
                 ExpTy left lty <- transVar st v
@@ -249,7 +255,7 @@ transDecs decs = execStateT $ do
         transFunDec (name, params', result_ty, body, pos) = StateT $ \st@(SS venv tenv lev tst) -> do
                 let enterparam :: (S.Symbol, T.Ty, Bool) -> State SemantState ()
                     enterparam (name, ty, esc) = do
-                        st@(SS{venv = venv}) <- get
+                        st@SS{venv = venv} <- get
                         let (acs, tst') = runState (TL.allocLocal lev esc) tst
                             venv' = S.enter venv name (E.VarEntry acs ty)
                         put st{venv = venv'}
@@ -306,5 +312,5 @@ transTy' checked (name, pos) tenv = case S.look tenv name of
 
 transProg :: A.Exp -> Either Err.Error ()
 transProg exp = do
-        transExp (SS E.baseVEnv E.baseTEnv TL.Outermost Temp.initState) exp
+        transExp initState exp
         return ()

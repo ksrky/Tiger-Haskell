@@ -208,6 +208,8 @@ executable chapter6
 executable chapter7
   main-is: Main.hs
   other-modules:
+      Common.Symbol
+      Common.Temp
       Frame.Frame
       Frame.X64Frame
       IR.Tree
@@ -215,7 +217,6 @@ executable chapter7
       Semant.Error
       Semant.FindEscape
       Semant.Semant
-      Semant.Symbol
       Semant.Translate
       Semant.Types
       Syntax.Absyn
@@ -224,7 +225,6 @@ executable chapter7
       Syntax.Lexer
       Syntax.Parser
       Syntax.Token
-      Temp.Temp
       Paths_Tiger
   hs-source-dirs:
       src/chapter7
