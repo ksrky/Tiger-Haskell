@@ -190,7 +190,7 @@ transExp st@(SS venv tenv _ tst) = trexp
                 trexp e
         trexp (A.BreakExp _) = error "break is not implemented yet"
         trexp (A.LetExp decs body pos) = do
-                st' <- transDecs decs st
+                (exprs, st') <- transDecs decs `runStateT` st
                 transExp st' body
         trexp (A.ArrayExp typ size init pos) = case S.look tenv typ of
                 Nothing -> Err.returnErr_ (Err.TypeNotFound typ) pos
@@ -217,13 +217,13 @@ transExp st@(SS venv tenv _ tst) = trexp
 type TypeDec = (A.Symbol, A.Pos)
 type FunDec = (S.Symbol, [(S.Symbol, T.Ty, Bool)], T.Ty, A.Exp, A.Pos)
 
-transDecs :: [A.Dec] -> SemantState -> Either Err.Error SemantState
-transDecs decs = execStateT $ do
+transDecs :: [A.Dec] -> StateT SemantState (Either Err.Error) [TL.Exp]
+transDecs decs = do
         typedecs <- concat <$> mapM regisTypeDec decs
         fundecs <- concat <$> mapM regisFunDec decs
         mapM_ transTypeDec typedecs
         mapM_ transFunDec fundecs
-        mapM_ transVarDec decs
+        concat <$> mapM transVarDec decs
     where
         regisTypeDec :: A.Dec -> StateT SemantState (Either Err.Error) [TypeDec]
         regisTypeDec (A.TypeDec name ty pos) = StateT $ \st@(SS venv tenv _ _) -> do
@@ -267,22 +267,22 @@ transDecs decs = execStateT $ do
                 ty <- exptyTy <$> transExp st' body
                 match result_ty ty tenv pos
                 return ((), st)
-        transVarDec :: A.Dec -> StateT SemantState (Either Err.Error) ()
+        transVarDec :: A.Dec -> StateT SemantState (Either Err.Error) [TL.Exp]
         transVarDec (A.VarDec name esc mtyp init pos) = StateT $ \st@(SS venv tenv lev tst) -> case mtyp of
                 Just (typ, p) -> case S.look tenv typ of
                         Nothing -> Err.returnErr_ (Err.TypeNotFound typ) pos
-                        Just t -> do
-                                ty <- exptyTy <$> transExp st init
-                                match t ty tenv pos
+                        Just ty -> do
+                                ExpTy expr ty' <- transExp st init
+                                match ty ty' tenv pos
                                 let (acs, tst') = runState (TL.allocLocal lev esc) tst
                                     venv' = S.enter venv name (E.VarEntry acs ty)
-                                return ((), st{venv = venv', tstate = tst'})
+                                return ([expr], st{venv = venv', tstate = tst'})
                 Nothing -> do
-                        ty <- exptyTy <$> transExp st init
+                        ExpTy expr ty <- transExp st init
                         let (acs, tst') = runState (TL.allocLocal lev esc) tst
                             venv' = S.enter venv name (E.VarEntry acs ty)
-                        return ((), st{venv = venv', tstate = tst'})
-        transVarDec _ = return ()
+                        return ([expr], st{venv = venv', tstate = tst'})
+        transVarDec _ = return []
 
 transTy :: (A.Symbol, A.Pos) -> StateT SemantState (Either Err.Error) T.Ty
 transTy (name, pos) = StateT $ \st@(SS _ tenv _ _) -> do

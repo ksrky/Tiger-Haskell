@@ -3,8 +3,6 @@ module IR.Tree where
 import qualified Common.Temp as Temp
 import Prelude hiding (EQ, GT, LT)
 
-type Size = Int
-
 data Exp
         = CONST Int
         | NAME Temp.Label

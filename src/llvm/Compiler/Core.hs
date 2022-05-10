@@ -9,18 +9,17 @@ data Var
         deriving (Eq, Show)
 
 data Exp
-        = VarExp Var
-        | NilExp
-        | IntExp Integer
+        = VAR Var
+        | NIL
+        | INT Integer
         | StringExp String
-        | CallExp S.Symbol [Exp]
-        | OpExp Exp Oper Exp
+        | CALL S.Symbol [Exp]
+        | BINOP BinOp Exp Exp
         | RecordExp [(S.Symbol, Exp)]
         | SeqExp [Exp]
         | AssignExp Var Exp
         | IfExp Exp Exp (Maybe Exp)
         | WhileExp Exp Exp
-        | LetExp [Dec] Exp
         | ArrayExp S.Symbol Exp Exp
         deriving (Eq, Show)
 
@@ -29,15 +28,15 @@ data Dec
         | VarDec S.Symbol (Maybe S.Symbol)
         deriving (Eq, Show)
 
-data Oper
-        = PlusOp
-        | MinusOp
-        | TimesOp
-        | DivideOp
-        | EqOp
-        | NeqOp
-        | LtOp
-        | LeOp
-        | GtOp
-        | GeOp
+data BinOp
+        = PLUS
+        | MINUS
+        | MUL
+        | DIV
+        | AND
+        | OR
+        | LSHIFT
+        | RSHIFT
+        | ARSHIFT
+        | XOR
         deriving (Eq, Show)
