@@ -17,12 +17,14 @@ opkind GtOp = Order
 opkind GeOp = Order
 
 forToLet :: (Symbol, Bool, Exp, Exp, Exp, Pos) -> Exp
-forToLet (name, esc, lo, hi, body, pos) = LetExp decs body' pos
+forToLet (name, esc, lo, hi, body, pos) = LetExp decs body'' pos
     where
         decs =
                 [ VarDec name esc (Just ("int", pos)) lo pos
                 , VarDec "_limits" esc (Just ("int", pos)) hi pos
                 ]
-        var = SimpleVar name pos
-        exp = OpExp (VarExp var) PlusOp (IntExp 1) pos
-        body' = SeqExp (body : [AssignExp var exp pos]) pos
+        i = SimpleVar name pos
+        exp = OpExp (VarExp i) PlusOp (IntExp 1) pos
+        body' = SeqExp (body : [AssignExp i exp pos]) pos
+        test = OpExp (VarExp i) LeOp (VarExp (SimpleVar "_limits" pos)) pos
+        body'' = WhileExp test body' pos

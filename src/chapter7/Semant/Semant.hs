@@ -10,6 +10,7 @@ import qualified Syntax.Absyn as A
 import qualified Syntax.Absyn.Utils as A
 
 import Control.Monad.State
+import Data.List (elemIndex)
 import Data.Maybe (isJust)
 
 type VEnv = S.Table E.EnvEntry
@@ -56,7 +57,8 @@ transVar st@(SS venv tenv lev tst) = trvar
                         T.RECORD _ fs -> case lookup sym fs of
                                 Nothing -> Err.returnErr_ (Err.RecordFieldNotFound sym) pos
                                 Just ty' -> do
-                                        let expr = TL.fieldVar var' var' `evalState` tst
+                                        let Just idx = elemIndex sym (map fst fs)
+                                            expr = TL.lvalueVar var' (TL.intExp idx) `evalState` tst
                                         return $ ExpTy expr ty'
                         _ -> Err.returnErr_ (Err.WrongType "record type" (show ty)) pos
         trvar (A.SubscriptVar var exp pos) = do
@@ -65,12 +67,12 @@ transVar st@(SS venv tenv lev tst) = trvar
                         T.ARRAY _ ty' -> do
                                 ExpTy idx ty'' <- transExp st exp
                                 match T.INT ty'' tenv pos
-                                let expr = TL.subscriptVar var' idx `evalState` tst
+                                let expr = TL.lvalueVar var' idx `evalState` tst
                                 return $ ExpTy expr ty'
                         _ -> Err.returnErr_ (Err.WrongType "array type" (show var)) pos
 
 transExp :: SemantState -> A.Exp -> Either Err.Error ExpTy
-transExp st@(SS venv tenv _ tst) = trexp
+transExp st@(SS venv tenv lev tst) = trexp
     where
         trexp :: A.Exp -> Either Err.Error ExpTy --tmp: StateT, evalState? tempstate
         trexp (A.VarExp v) = transVar st v
@@ -82,10 +84,10 @@ transExp st@(SS venv tenv _ tst) = trexp
         trexp (A.CallExp fun args pos) = case S.look venv fun of
                 Nothing -> Err.returnErr_ (Err.UnknownIdentifier fun) pos
                 Just (E.VarEntry _ _) -> Err.returnErr_ (Err.UnknownIdentifier fun) pos
-                Just (E.FunEntry _ lab fmls res) -> do
+                Just (E.FunEntry lev_dec lab fmls res) -> do
                         checkformals args fmls
                         args' <- mapM trexp args
-                        let expr = TL.callExp lab (map exptyExp args') `evalState` tst
+                        let expr = TL.callExp (lev_dec, lev) lab (map exptyExp args') `evalState` tst
                         return $ ExpTy expr res
                     where
                         checkformals :: [A.Exp] -> [T.Ty] -> Either Err.Error ()
@@ -105,7 +107,7 @@ transExp st@(SS venv tenv _ tst) = trexp
                         (t, t') -> case A.opkind op of
                                 A.Equal | t == t' -> return 2
                                 _ -> Err.returnErr_ (Err.InvalidComparison (show lty) (show rty) (show op)) pos
-                left' <- exptyExp <$> trexp left
+                left' <- exptyExp <$> trexp left -- tmp: string comparison
                 right' <- exptyExp <$> trexp right
                 expr <- case op of
                         A.PlusOp | kind < 1 -> return $ (left' `TL.plusOp` right') `evalState` tst
