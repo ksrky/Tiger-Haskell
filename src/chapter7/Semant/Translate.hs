@@ -98,9 +98,9 @@ simpleVar :: (Access, Level) -> Exp
 simpleVar (Access lev_dec acs, lev_use) = Ex sl
     where
         walkStaticLink :: Level -> T.Exp -> T.Exp
-        walkStaticLink Outermost e = undefined
+        --walkStaticLink Outermost e = error $ show e
         walkStaticLink lo e
-                | lev_dec == lo = Frame.exp acs e
+                | name lev_dec == name lo = Frame.exp acs e
                 | otherwise = walkStaticLink (parent lo) (calcStaticLink lo e)
         sl = walkStaticLink lev_use (T.TEMP $ Frame.fp $ frame lev_use)
 
@@ -108,7 +108,7 @@ lvalueVar :: Exp -> Exp -> State Temp.TempState Exp
 lvalueVar var idx = do
         var' <- unEx var
         idx' <- unEx idx
-        return $ Ex $ T.BINOP T.PLUS var' (T.BINOP T.MUL idx' Frame.wordSize)
+        return $ Ex $ T.BINOP T.PLUS var' (T.BINOP T.MUL idx' Frame.wordSize) -- ? what is wordSize
 
 nilExp :: Exp
 nilExp = Ex $ T.CONST 0
@@ -129,7 +129,7 @@ callExp (lev_dec, lev_use) f es = do
         walkStaticLink :: Level -> T.Exp -> T.Exp
         walkStaticLink Outermost e = e
         walkStaticLink lo e
-                | lev_dec == lo = e
+                | name lev_dec == name lo = e
                 | otherwise = walkStaticLink (parent lo) (calcStaticLink lo e)
         sl = walkStaticLink lev_use (T.TEMP $ Frame.fp $ frame lev_use)
 

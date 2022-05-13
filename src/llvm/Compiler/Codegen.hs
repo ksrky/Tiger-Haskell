@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Codegen where
+module Compiler.Codegen where
 
 import Control.Monad.State
 import qualified Data.ByteString.Char8 as C
