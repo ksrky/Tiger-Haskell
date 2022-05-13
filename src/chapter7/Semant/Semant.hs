@@ -90,19 +90,16 @@ transExp st@(SS venv tenv lev tst) = trexp
                 Nothing -> Err.unknownFunction fun pos
                 Just (E.VarEntry _ _) -> Err.unknownFunction fun pos
                 Just (E.FunEntry fun_lev lab fmls res) -> do
-                        checkformals args fmls
+                        when (length args /= length fmls) $ Err.wrongNumberArgs (length args) (length fmls) pos
+                        zipWithM_ checkformal args fmls
                         args' <- mapM trexp args
                         let expr = TL.callExp (TL.parent fun_lev, lev) lab (map exptyExp args') `evalState` tst
                         return $ ExpTy expr res
                     where
-                        checkformals :: [A.Exp] -> [T.Ty] -> Either Err.Error ()
-                        checkformals [] [] = return ()
-                        checkformals (e : es) (t : ts) = do
+                        checkformal :: A.Exp -> T.Ty -> Either Err.Error ()
+                        checkformal e t = do
                                 ty <- exptyTy <$> trexp e
                                 match t ty tenv pos
-                                checkformals es ts
-                                return ()
-                        checkformals _ _ = Err.otherError "wrong number of arguments" pos
         trexp (A.OpExp left op right pos) = do
                 ExpTy left' lty <- trexp left -- tmp: string comparison
                 ExpTy right' rty <- trexp right
@@ -227,13 +224,13 @@ transDecs decs = execStateT $ do
     where
         regisTypeDec :: A.Dec -> StateT SemantState (Either Err.Error) [TypeDec]
         regisTypeDec (A.TypeDec name ty pos) = StateT $ \st@(SS venv tenv _ _) -> do
-                when (isJust $ S.look tenv name) (Err.returnErr_ (Err.MultipleDeclarations name) pos) --todo: local hides global
+                when (isJust $ S.look tenv name) $ Err.returnErr_ (Err.MultipleDeclarations name) pos --todo: local hides global
                 let tenv' = S.enter tenv name (T.Temp ty)
                 return ([(name, pos)], st{tenv = tenv'})
         regisTypeDec _ = return []
         regisFunDec :: A.Dec -> StateT SemantState (Either Err.Error) [FunDec]
         regisFunDec (A.FunDec name params result body pos) = StateT $ \st@(SS venv tenv lev tst) -> do
-                when (isJust $ S.look venv name) (Err.returnErr_ (Err.MultipleDeclarations name) pos) --todo: local hides global
+                when (isJust $ S.look venv name) $ Err.returnErr_ (Err.MultipleDeclarations name) pos --todo: local hides global
                 params' <- forM params $ \(A.Field name esc typ pos) -> do
                         ty <- lookty tenv typ pos
                         return (name, ty, esc)
@@ -287,7 +284,7 @@ transTy (name, pos) = StateT $ \st@(SS _ tenv _ _) -> do
 transTy' :: [A.Symbol] -> (A.Symbol, A.Pos) -> TEnv -> Either Err.Error (T.Ty, TEnv)
 transTy' checked (name, pos) tenv = case S.look tenv name of
         Just (T.Temp (A.NameTy typ p)) -> do
-                when (name `elem` checked) (Err.returnErr_ (Err.CyclicDefinition name) pos)
+                when (name `elem` checked) $ Err.returnErr_ (Err.CyclicDefinition name) pos
                 (ty, tenv') <- transTy' (checked ++ [name]) (typ, pos) tenv
                 return (ty, tenv')
         Just (T.Temp (A.RecordTy fields))
