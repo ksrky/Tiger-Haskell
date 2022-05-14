@@ -23,6 +23,30 @@ instance Show ExpTy where
 
 data SemantState = SS {venv :: VEnv, tenv :: TEnv, level :: TL.Level, tstate :: Temp.TempState}
 
+runTempState :: State Temp.TempState a -> StateT SemantState (Either Err.Error) a
+runTempState s = do
+        st <- get
+        tst <- gets tstate
+        let (res, tst') = runState s tst
+        put st{tstate = tst'}
+        return res
+
+modifyVEnv :: String -> E.EnvEntry -> StateT SemantState (Either Err.Error) ()
+modifyVEnv key val = do
+        st <- get
+        venv <- gets venv
+        let venv' = S.enter venv key val
+        put st{venv = venv'}
+
+modifyTEnv :: String -> T.Ty -> StateT SemantState (Either Err.Error) ()
+modifyTEnv key val = do
+        st <- get
+        tenv <- gets tenv
+        let tenv' = S.enter tenv key val
+        put st{tenv = tenv'}
+
+newtype Semant a = Semant (StateT Temp.TempState (StateT SemantState (Either Err.Error)) a)
+
 initState :: SemantState
 initState = SS E.baseVEnv E.baseTEnv TL.topLevel Temp.emptyState
 
@@ -191,8 +215,10 @@ transExp st@(SS venv tenv lev tst) = trexp
                 trexp e
         trexp (A.BreakExp _) = error "break is not implemented yet"
         trexp (A.LetExp decs body pos) = do
-                st' <- transDecs decs st
-                transExp st' body
+                (decs', st') <- transDecs decs `runStateT` st
+                ExpTy body' ty <- transExp st' body
+                let expr = TL.letExp decs' body' `evalState` tst
+                return $ ExpTy expr ty
         trexp (A.ArrayExp typ size init pos) = do
                 ty <- lookty tenv typ pos
                 ty' <- isArray ty
@@ -214,67 +240,77 @@ transExp st@(SS venv tenv lev tst) = trexp
 type TypeDec = (A.Symbol, A.Pos)
 type FunDec = (S.Symbol, [(S.Symbol, T.Ty, Bool)], T.Ty, A.Exp, A.Pos)
 
-transDecs :: [A.Dec] -> SemantState -> Either Err.Error SemantState
-transDecs decs = execStateT $ do
+transDecs :: [A.Dec] -> StateT SemantState (Either Err.Error) [TL.Exp]
+transDecs decs = do
         typedecs <- concat <$> mapM regisTypeDec decs
         fundecs <- concat <$> mapM regisFunDec decs
         mapM_ transTypeDec typedecs
         mapM_ transFunDec fundecs
         mapM_ transVarDec decs
+        concat <$> mapM transVarDec decs
     where
         regisTypeDec :: A.Dec -> StateT SemantState (Either Err.Error) [TypeDec]
-        regisTypeDec (A.TypeDec name ty pos) = StateT $ \st@(SS venv tenv _ _) -> do
-                when (isJust $ S.look tenv name) $ Err.returnErr_ (Err.MultipleDeclarations name) pos --todo: local hides global
-                let tenv' = S.enter tenv name (T.Temp ty)
-                return ([(name, pos)], st{tenv = tenv'})
+        regisTypeDec (A.TypeDec name ty pos) = do
+                tenv <- gets tenv
+                when (isJust $ S.look tenv name) $lift $ Err.returnErr_ (Err.MultipleDeclarations name) pos --todo: local hides global
+                modifyTEnv name (T.Temp ty)
+                return [(name, pos)]
         regisTypeDec _ = return []
         regisFunDec :: A.Dec -> StateT SemantState (Either Err.Error) [FunDec]
-        regisFunDec (A.FunDec name params result body pos) = StateT $ \st@(SS venv tenv lev tst) -> do
-                when (isJust $ S.look venv name) $ Err.returnErr_ (Err.MultipleDeclarations name) pos --todo: local hides global
-                params' <- forM params $ \(A.Field name esc typ pos) -> do
-                        ty <- lookty tenv typ pos
-                        return (name, ty, esc)
-                result_ty <- case result of
+        regisFunDec (A.FunDec name params result body pos) = do
+                venv <- gets venv
+                tenv <- gets tenv
+                when (isJust $ S.look venv name) $ lift $ Err.returnErr_ (Err.MultipleDeclarations name) pos --todo: local hides global
+                params' <- lift $
+                        forM params $ \(A.Field name esc typ pos) -> do
+                                ty <- lookty tenv typ pos
+                                return (name, ty, esc)
+                result_ty <- lift $ case result of
                         Just (typ, pos) -> lookty tenv typ pos
                         Nothing -> return T.UNIT
-                let (lev', tst') = runState (TL.newLevel lev (map A.fieldEscape params)) tst
-                    fun = E.FunEntry lev' (Temp.namedLabel name) (map (\(_, x, _) -> x) params') result_ty
-                    venv' = S.enter venv name fun
-                return ([(name, params', result_ty, body, pos)], st{venv = venv'})
+                lev <- gets level
+                lev' <- runTempState (TL.newLevel lev (map A.fieldEscape params))
+                let fun = E.FunEntry lev' (Temp.namedLabel name) (map (\(_, x, _) -> x) params') result_ty
+                modifyVEnv name fun
+                return [(name, params', result_ty, body, pos)]
         regisFunDec _ = return []
         transTypeDec :: TypeDec -> StateT SemantState (Either Err.Error) ()
-        transTypeDec (name, pos) = StateT $ \st -> do
-                st' <- execStateT (transTy (name, pos)) st
-                return ((), st')
+        transTypeDec (name, pos) = void $ transTy (name, pos)
         transFunDec :: FunDec -> StateT SemantState (Either Err.Error) ()
-        transFunDec (name, params', result_ty, body, pos) = StateT $ \st@(SS venv tenv _ tst) -> do
+        transFunDec (name, params', result_ty, body, pos) = do
+                st@(SS venv tenv _ _) <- get
                 let enterparam :: (S.Symbol, T.Ty, Bool) -> State SemantState ()
                     enterparam (name, ty, esc) = do
-                        st@SS{venv = venv, level = lev} <- get
+                        st@(SS venv _ lev tst) <- get
                         let (acs, tst') = runState (TL.allocLocal lev esc) tst
                             venv' = S.enter venv name (E.VarEntry acs ty)
                         put st{venv = venv'}
                         return ()
                     Just fun = S.look venv name
                     st' = mapM enterparam params' `execState` st{level = E.level fun}
-                ty <- exptyTy <$> transExp st' body
-                match result_ty ty tenv pos
-                return ((), st)
-        transVarDec :: A.Dec -> StateT SemantState (Either Err.Error) ()
-        transVarDec (A.VarDec name esc mtyp init pos) = StateT $ \st@(SS venv tenv lev tst) -> case mtyp of
-                Just (typ, p) -> do
-                        ty <- lookty tenv typ pos
-                        ty' <- exptyTy <$> transExp st init
-                        match ty ty' tenv pos
-                        let (acs, tst') = runState (TL.allocLocal lev esc) tst
-                            venv' = S.enter venv name (E.VarEntry acs ty)
-                        return ((), st{venv = venv', tstate = tst'})
-                Nothing -> do
-                        ty <- exptyTy <$> transExp st init
-                        let (acs, tst') = runState (TL.allocLocal lev esc) tst
-                            venv' = S.enter venv name (E.VarEntry acs ty)
-                        return ((), st{venv = venv', tstate = tst'})
-        transVarDec _ = return ()
+                ty <- lift $ exptyTy <$> transExp st' body
+                lift $ match result_ty ty tenv pos
+                return ()
+        transVarDec :: A.Dec -> StateT SemantState (Either Err.Error) [TL.Exp]
+        transVarDec (A.VarDec name esc mtyp init pos) = do
+                st <- get
+                tenv <- gets tenv
+                (expr, ty) <- lift $ case mtyp of
+                        Just (typ, p) -> do
+                                ty <- lookty tenv typ pos
+                                ExpTy expr ty' <- transExp st init
+                                match ty ty' tenv pos
+                                return (expr, ty)
+                        Nothing -> do
+                                ExpTy expr ty <- transExp st init
+                                return (expr, ty)
+                lev <- gets level
+                acs <- runTempState $ TL.allocLocal lev esc
+                modifyVEnv name (E.VarEntry acs ty)
+                let var = TL.simpleVar (acs, lev)
+                decl <- runTempState $ TL.assignExp var expr
+                return [decl]
+        transVarDec _ = return []
 
 transTy :: (A.Symbol, A.Pos) -> StateT SemantState (Either Err.Error) T.Ty
 transTy (name, pos) = StateT $ \st@(SS _ tenv _ _) -> do

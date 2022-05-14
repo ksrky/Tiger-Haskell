@@ -36,6 +36,6 @@ $ cabal run <executable> <option>
 - Fun Tiger
 - Lazy Tiger
 
-## Cutom
+## My Work
 
 - [LLVM](https://github.com/ksrky/Tiger/tree/master/src/llvm/README.md)

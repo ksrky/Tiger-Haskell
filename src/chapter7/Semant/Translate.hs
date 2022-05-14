@@ -176,7 +176,9 @@ neqOp :: Exp -> Exp -> State Temp.TempState Exp
 neqOp = relOp T.NE
 
 recordExp :: [Exp] -> State Temp.TempState Exp
-recordExp cs = callExp (Outermost, Outermost) (Temp.namedLabel "initRecord") (Ex (T.CONST $ length cs) : cs)
+recordExp cs = do
+        args <- mapM unEx (Ex (T.CONST $ length cs) : cs)
+        return $ Ex $ Frame.externalCall "initRecord" args
 
 seqExp :: [Exp] -> State Temp.TempState Exp
 seqExp [] = return $ Nx $ T.EXP $ T.CONST 0
@@ -231,10 +233,12 @@ whileExp test body = do
                                 ]
 
 letExp :: [Exp] -> Exp -> State Temp.TempState Exp
-letExp es body = do
-        ss <- mapM unNx es
+letExp decs body = do
+        ss <- mapM unNx decs
         e <- unEx body
         return $ Ex $ T.ESEQ (mkseq ss) e
 
 arrayExp :: Exp -> Exp -> State Temp.TempState Exp
-arrayExp size init = callExp (Outermost, Outermost) (Temp.namedLabel "initArray") [size, init]
+arrayExp size init = do
+        args <- mapM unEx [size, init]
+        return $ Ex $ Frame.externalCall "initArray" args
