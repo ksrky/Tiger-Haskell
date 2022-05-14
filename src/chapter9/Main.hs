@@ -49,7 +49,4 @@ process st input = case runAlex input parse of
                 let exp' = findEscape exp
                 case transExp st exp' of
                         Left err -> print err
-                        Right (ExpTy expr _) -> case expr of
-                                Ex e -> print e
-                                Nx s -> print s
-                                Cx _ -> error ""
+                        Right (ExpTy expr _) -> print expr

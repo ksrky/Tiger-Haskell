@@ -48,6 +48,11 @@ data Exp
         | Nx T.Stm
         | Cx ((Temp.Label, Temp.Label) -> T.Stm)
 
+instance Show Exp where
+        show (Ex e) = show e
+        show (Nx s) = show s
+        show (Cx _) = error "cannot show Cx"
+
 unEx :: Exp -> State Temp.TempState T.Exp
 unEx (Ex exp) = return exp
 unEx (Nx stm) = return $ T.ESEQ stm (T.CONST 0)

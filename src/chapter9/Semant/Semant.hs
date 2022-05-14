@@ -15,10 +15,7 @@ import Data.List (elemIndex)
 type VEnv = S.Table E.EnvEntry
 type TEnv = S.Table (TL.Level, T.Ty)
 
-data ExpTy = ExpTy {exptyExp :: TL.Exp, exptyTy :: T.Ty}
-
-instance Show ExpTy where
-        show (ExpTy _ ty) = show ty
+data ExpTy = ExpTy {exptyExp :: TL.Exp, exptyTy :: T.Ty} deriving (Show)
 
 ------------------------------------------------------------------
 -- SemantState
