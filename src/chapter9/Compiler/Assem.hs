@@ -25,6 +25,6 @@ format saytemp = format'
                 f ('`' : 'd' : i : rest) = saytemp (dst !! read [i]) ++ f rest
                 f ('`' : 'j' : i : rest) = saylab (jump !! read [i]) ++ f rest
                 f ('`' : '`' : rest) = '`' : f rest
-                f ('`' : _ : rest) = error "impossible bad assem format"
+                f ('`' : _ : rest) = error "impossible: bad assem format"
                 f (c : rest) = c : f rest
                 f [] = []

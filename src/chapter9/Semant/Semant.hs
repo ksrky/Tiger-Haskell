@@ -100,7 +100,7 @@ transVar st@(SS venv tenv lev tst) = trvar
                 case ty of
                         T.ARRAY _ ty' -> do
                                 ExpTy idx ty'' <- lift $transExp st exp
-                                lift $ match T.INT ty'' tenv pos
+                                lift $ (T.INT `match` ty'') tenv pos
                                 expr <- mkT $ TL.lvalueVar var' idx
                                 return $ ExpTy expr ty'
                         _ -> lift $ Err.wrongType "array type" (show var) pos
@@ -114,7 +114,7 @@ mkT s = StateT $ \a -> return (runState s a)
 transExp :: SemantState -> A.Exp -> Either Err.Error ExpTy
 transExp st@(SS venv tenv lev tst) exp = evalStateT (trexp exp) tst
     where
-        trexp :: A.Exp -> StateT Temp.TempState (Either Err.Error) ExpTy --tmp: StateT, evalState? tempstate
+        trexp :: A.Exp -> StateT Temp.TempState (Either Err.Error) ExpTy
         trexp (A.VarExp v) = transVar st v
         trexp A.NilExp = return $ ExpTy TL.nilExp T.NIL
         trexp (A.IntExp i) = return $ ExpTy (TL.intExp i) T.INT
@@ -125,7 +125,7 @@ transExp st@(SS venv tenv lev tst) exp = evalStateT (trexp exp) tst
                 Nothing -> lift $ Err.unknownFunction fun pos
                 Just (E.VarEntry _ _) -> lift $ Err.unknownFunction fun pos
                 Just (E.FunEntry fun_lev lab fmls res) -> do
-                        lift $when (length args /= length fmls) $ Err.wrongNumberArgs (length args) (length fmls) pos
+                        lift $ when (length args /= length fmls) $ Err.wrongNumberArgs (length args) (length fmls) pos
                         zipWithM_ checkformal args fmls
                         args' <- mapM trexp args
                         expr <- mkT $ TL.callExp (TL.parent fun_lev, lev) lab (map exptyExp args')
@@ -134,7 +134,7 @@ transExp st@(SS venv tenv lev tst) exp = evalStateT (trexp exp) tst
                         checkformal :: A.Exp -> T.Ty -> StateT Temp.TempState (Either Err.Error) ()
                         checkformal e t = do
                                 ty <- exptyTy <$> trexp e
-                                lift $ match t ty tenv pos
+                                lift $ (t `match` ty) tenv pos
         trexp (A.OpExp left op right pos) = do
                 ExpTy left' lty <- trexp left -- tmp: string comparison
                 ExpTy right' rty <- trexp right
@@ -182,7 +182,7 @@ transExp st@(SS venv tenv lev tst) exp = evalStateT (trexp exp) tst
                 checkrecord fs ((s, t) : sts) = case lookup s fs of
                         Just (e, p) -> do
                                 ty <- exptyTy <$> trexp e
-                                lift $ match t ty tenv pos
+                                lift $ (t `match` ty) tenv pos
                                 checkrecord fs sts
                         Nothing -> lift $ Err.otherError ("record field not found" ++ s) pos
         trexp (A.SeqExp seqexp pos) = do
@@ -193,7 +193,7 @@ transExp st@(SS venv tenv lev tst) exp = evalStateT (trexp exp) tst
         trexp (A.AssignExp v e pos) = do
                 ExpTy left lty <- transVar st v
                 ExpTy right rty <- trexp e
-                lift $ match lty rty tenv pos
+                lift $ (lty `match` rty) tenv pos
                 expr <- mkT $ TL.assignExp left right
                 return $ ExpTy expr T.UNIT
         trexp (A.IfExp test then' melse pos) = do
@@ -202,12 +202,12 @@ transExp st@(SS venv tenv lev tst) exp = evalStateT (trexp exp) tst
                 ExpTy then'' then_ty <- trexp then'
                 case melse of
                         Nothing -> do
-                                lift $ match T.UNIT then_ty tenv pos
+                                lift $ (T.UNIT `match` then_ty) tenv pos
                                 expr <- mkT $ TL.ifExp test' then'' TL.nilExp
                                 return $ ExpTy expr T.UNIT
                         Just else' -> do
                                 ExpTy else'' else_ty <- trexp else'
-                                lift $ match then_ty else_ty tenv pos
+                                lift $ (then_ty `match` else_ty) tenv pos
                                 expr <- mkT $ TL.ifExp test' then'' else''
                                 return $ ExpTy expr then_ty
         trexp (A.WhileExp test body pos) = do
@@ -307,7 +307,7 @@ transDecs decs = do
                     Just fun = S.look venv name
                     st' = mapM enterparam params' `execState` st{level = E.level fun}
                 ty <- lift $ exptyTy <$> transExp st' body
-                lift $ match result_ty ty tenv pos
+                lift $ (result_ty `match` ty) tenv pos
                 return ()
         transVarDec :: A.Dec -> StateT SemantState (Either Err.Error) [TL.Exp]
         transVarDec (A.VarDec name esc mtyp init pos) = do
@@ -317,7 +317,7 @@ transDecs decs = do
                         Just (typ, p) -> do
                                 ty <- lookty tenv typ pos
                                 ExpTy expr ty' <- transExp st init
-                                match ty ty' tenv pos
+                                (ty `match` ty') tenv pos
                                 return (expr, ty)
                         Nothing -> do
                                 ExpTy expr ty <- transExp st init
@@ -365,7 +365,7 @@ transTy' checked (name, pos) = do
                 Just (_, ty) -> return ty
                 _ -> lift $ Err.unknownType name pos
 
-transProg :: A.Exp -> Either Err.Error ()
+transProg :: A.Exp -> Either Err.Error TL.Exp
 transProg exp = do
-        transExp initState exp
-        return ()
+        ExpTy expr _ <- transExp initState exp
+        return expr

@@ -2,6 +2,7 @@ module Compiler.Codegen where
 
 import qualified Common.Temp as Temp
 import qualified Compiler.Assem as A
+import qualified Frame.Frame as Frame
 import qualified IR.Tree as T
 
 import Control.Monad.State
@@ -10,6 +11,12 @@ data CodegenState = CodegenState
         { ilist :: [A.Instr]
         , temps :: Temp.Temp
         }
+
+codegen :: Frame.FrameBase f => f -> T.Stm -> State CodegenState [A.Instr]
+codegen frame stm = do
+        munchStm stm
+        ilist <- gets ilist
+        return $ reverse ilist
 
 newTemp :: State CodegenState Temp.Temp
 newTemp = state (\cgn@CodegenState{temps = t} -> (t, cgn{temps = t + 1}))
@@ -84,17 +91,18 @@ munchStm (T.MOVE (T.TEMP i) e2) = do
                         }
                 )
 munchStm (T.LABEL lab) = emit A.LABEL{A.assem = lab ++ ":\n", A.lab = lab}
-{-munchStm (T.EXP (T.CALL e args)) = do
+munchStm (T.EXP (T.CALL e args)) = do
         e' <- munchExp e
-        args' <- munchArgs 0 args
+        args' <- forM args munchExp
+        t <- newTemp
         emit
                 ( A.OPER
                         { A.assem = "CALL `s0\n"
                         , A.src = e' : args'
-                        , A.dst = calldefs
+                        , A.dst = [t]
                         , A.jump = Nothing
                         }
-                )-}
+                )
 munchStm _ = undefined
 
 result :: (Temp.Temp -> State CodegenState ()) -> State CodegenState Temp.Temp
