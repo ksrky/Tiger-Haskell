@@ -9,11 +9,16 @@ data EnvEntry
         = VarEntry {access :: TL.Access, ty :: T.Ty}
         | FunEntry {level :: TL.Level, label :: Temp.Label, formals :: [T.Ty], result :: T.Ty}
 
-type BaseTEnv = S.Table T.Ty
+type BaseTEnv = S.Table (TL.Level, T.Ty)
 type BaseVEnv = S.Table EnvEntry
 
 baseTEnv :: BaseTEnv
-baseTEnv = S.new [("int", T.INT), ("string", T.STRING), ("nil", T.NIL)]
+baseTEnv =
+        S.new
+                [ ("int", (TL.Outermost, T.INT))
+                , ("string", (TL.Outermost, T.STRING))
+                , ("nil", (TL.Outermost, T.NIL))
+                ]
 
 baseVEnv :: BaseVEnv
 baseVEnv = S.new $ map funentry reserved

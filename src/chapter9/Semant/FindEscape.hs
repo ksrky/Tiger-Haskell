@@ -18,7 +18,7 @@ traverseVar dep var = do
                 A.SimpleVar sym _ -> case S.look eenv sym of
                         Just (d, r)
                                 | d > dep -> do
-                                        put $ S.enter eenv sym (d, True)
+                                        S.enter sym (d, True)
                                         return var
                                 | otherwise -> return var
                         Nothing -> return var -- error
@@ -68,8 +68,7 @@ traverseExp dep = traExp
                 body' <- traExp body
                 return $ A.WhileExp test' body' pos
         traExp (A.ForExp name esc lo hi body pos) = do
-                eenv <- get
-                put $ S.enter eenv name (dep, False)
+                S.enter name (dep, False)
                 lo' <- traExp lo
                 hi' <- traExp hi
                 body' <- traExp body
@@ -101,14 +100,12 @@ traverseDec dep fundec@(A.FunDec _ para _ body _) = do
         put eenv
         return fundec{A.params = para', A.decBody = body'}
 traverseDec dep vardec@(A.VarDec name esc _ init _) = do
-        eenv <- get
-        put $ S.enter eenv name (dep, False)
+        S.enter name (dep, False)
         init' <- traverseExp dep init
         return vardec{A.decEscape = False, A.decInit = init}
 traverseDec dep dec = return dec
 
 traverseParam :: Depth -> A.Field -> State EscEnv A.Field
 traverseParam dep field@(A.Field name esc _ _) = do
-        eenv <- get
-        put $ S.enter eenv name (dep, False)
+        S.enter name (dep, False)
         return field{A.fieldName = name, A.fieldEscape = False}

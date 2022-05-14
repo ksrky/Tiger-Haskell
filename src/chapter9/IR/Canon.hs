@@ -102,7 +102,7 @@ basicBlocks stms = do
         return (stms', done)
 
 enterblock :: [T.Stm] -> S.Table [T.Stm] -> S.Table [T.Stm]
-enterblock b@(T.LABEL s : _) table = S.enter table s b
+enterblock b@(T.LABEL s : _) table = execState (S.enter s b) table
 enterblock _ table = table
 
 splitlast :: [a] -> ([a], a)
@@ -112,18 +112,18 @@ splitlast (h : t) = let (t', last) = splitlast t in (h : t', last)
 
 trace :: S.Table [T.Stm] -> [T.Stm] -> [[T.Stm]] -> State Temp.TempState [T.Stm]
 trace table b@(T.LABEL lab : _) rest = do
-        let table = S.enter table lab []
+        let table' = execState (S.enter lab []) table
         case splitlast b of
-                (most, T.JUMP (T.NAME lab') _) -> case S.look table lab of
-                        Just b'@(_ : _) -> trace table b' rest
-                        _ -> (b ++) <$> getnext table rest
-                (most, T.CJUMP opr x y t f) -> case (S.look table t,S.look table f) of
-                        (_, Just b'@(_ : _)) -> (b ++) <$> trace table b' rest
-                        (Just b'@(_ : _), _) -> ((most ++ [T.CJUMP (T.notRel opr) x y f t]) ++) <$> trace table b' rest
+                (most, T.JUMP (T.NAME lab') _) -> case S.look table' lab of
+                        Just b'@(_ : _) -> trace table' b' rest
+                        _ -> (b ++) <$> getnext table' rest
+                (most, T.CJUMP opr x y t f) -> case (S.look table' t,S.look table' f) of
+                        (_, Just b'@(_ : _)) -> (b ++) <$> trace table' b' rest
+                        (Just b'@(_ : _), _) -> ((most ++ [T.CJUMP (T.notRel opr) x y f t]) ++) <$> trace table' b' rest
                         _ -> do
                                 f' <- Temp.newLabel
-                                ((most ++ [T.CJUMP opr x y t f', T.LABEL f', T.JUMP (T.NAME f) [f]]) ++) <$> getnext table rest
-                (most, T.JUMP{}) -> (b ++) <$> getnext table rest
+                                ((most ++ [T.CJUMP opr x y t f', T.LABEL f', T.JUMP (T.NAME f) [f]]) ++) <$> getnext table' rest
+                (most, T.JUMP{}) -> (b ++) <$> getnext table' rest
                 _ -> error ""
 trace _ _ _ = undefined
 
