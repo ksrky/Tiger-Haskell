@@ -23,7 +23,7 @@ newLevel :: Level -> [Bool] -> State Temp.TempState Level
 newLevel par fmls = do
         lab <- Temp.newLabel
         frm <- Frame.newFrame lab fmls
-        return (Level par lab (True : fmls) frm) -- ?
+        return (Level par lab (True : fmls) frm)
 
 topLevel :: Level
 topLevel = Level Outermost lab [True] frm
@@ -95,26 +95,20 @@ calcStaticLink lev e = T.MEM (T.BINOP T.PLUS e (T.CONST (par - chi)))
         par = Frame.fp $ frame $ parent lev
 
 simpleVar :: (Access, Level) -> Exp
-simpleVar (Access lev_dec acs, lev_use) = Ex $ Frame.exp acs (Frame.exp acs expr)
+simpleVar (Access lev_dec acs, lev_use) = Ex sl
     where
-        expr = walkStaticLink lev_dec lev_use (T.TEMP $ Frame.fp $ frame lev_use)
-        walkStaticLink :: Level -> Level -> T.Exp -> T.Exp
-        -- walkStaticLink hi Outermost e = undefined
-        walkStaticLink hi lo e
-                | hi == lo = e
-                | otherwise = walkStaticLink hi (parent lo) (calcStaticLink lo e)
+        walkStaticLink :: Level -> T.Exp -> T.Exp
+        --walkStaticLink Outermost e = error $ show e
+        walkStaticLink lo e
+                | name lev_dec == name lo = Frame.exp acs e
+                | otherwise = walkStaticLink (parent lo) (calcStaticLink lo e)
+        sl = walkStaticLink lev_use (T.TEMP $ Frame.fp $ frame lev_use)
 
-fieldVar :: Exp -> Exp -> State Temp.TempState Exp --tmp
-fieldVar var rcd = do
-        var' <- unEx var
-        rcd' <- unEx rcd
-        callExp (Temp.namedLabel "getItem") [var, rcd]
-
-subscriptVar :: Exp -> Exp -> State Temp.TempState Exp --tmp
-subscriptVar var idx = do
+lvalueVar :: Exp -> Exp -> State Temp.TempState Exp
+lvalueVar var idx = do
         var' <- unEx var
         idx' <- unEx idx
-        callExp (Temp.namedLabel "getItem") [var, idx] -- Ex $ T.ESEQ (T.MOVE (T.TEMP r) y) (T.TEMP r)
+        return $ Ex $ T.BINOP T.PLUS var' (T.BINOP T.MUL idx' Frame.wordSize) -- ? what is wordSize
 
 nilExp :: Exp
 nilExp = Ex $ T.CONST 0
@@ -127,10 +121,17 @@ stringExp s = do
         lab <- Temp.newLabel
         return (Ex $ T.NAME lab, Frame.STRING lab s)
 
-callExp :: Temp.Label -> [Exp] -> State Temp.TempState Exp
-callExp f es = do
+callExp :: (Level, Level) -> Temp.Label -> [Exp] -> State Temp.TempState Exp
+callExp (lev_dec, lev_use) f es = do
         args <- mapM unEx es
-        return $ Ex $ T.CALL (T.NAME f) args
+        return $ Ex $ T.CALL (T.NAME f) (sl : args)
+    where
+        walkStaticLink :: Level -> T.Exp -> T.Exp
+        walkStaticLink Outermost e = e
+        walkStaticLink lo e
+                | name lev_dec == name lo = e
+                | otherwise = walkStaticLink (parent lo) (calcStaticLink lo e)
+        sl = walkStaticLink lev_use (T.TEMP $ Frame.fp $ frame lev_use)
 
 binOp :: T.BinOp -> Exp -> Exp -> State Temp.TempState Exp
 binOp op left right = do
@@ -175,7 +176,9 @@ neqOp :: Exp -> Exp -> State Temp.TempState Exp
 neqOp = relOp T.NE
 
 recordExp :: [Exp] -> State Temp.TempState Exp
-recordExp cs = callExp (Temp.namedLabel "initRecord") (Ex (T.CONST $ length cs) : cs)
+recordExp cs = do
+        args <- mapM unEx (Ex (T.CONST $ length cs) : cs)
+        return $ Ex $ Frame.externalCall "initRecord" args
 
 seqExp :: [Exp] -> State Temp.TempState Exp
 seqExp [] = return $ Nx $ T.EXP $ T.CONST 0
@@ -229,14 +232,13 @@ whileExp test body = do
                                 , T.JUMP (T.NAME lab) [lab]
                                 ]
 
-breakExp :: Temp.Label -> Exp
-breakExp brkdest = Nx $ T.JUMP (T.NAME brkdest) [brkdest]
-
 letExp :: [Exp] -> Exp -> State Temp.TempState Exp
-letExp es body = do
-        ss <- mapM unNx es
+letExp decs body = do
+        ss <- mapM unNx decs
         e <- unEx body
         return $ Ex $ T.ESEQ (mkseq ss) e
 
 arrayExp :: Exp -> Exp -> State Temp.TempState Exp
-arrayExp size init = callExp (Temp.namedLabel "initArray") [size, init]
+arrayExp size init = do
+        args <- mapM unEx [size, init]
+        return $ Ex $ Frame.externalCall "initArray" args

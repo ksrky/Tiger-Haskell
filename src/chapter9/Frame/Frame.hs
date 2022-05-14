@@ -21,15 +21,15 @@ data Frag f
         | STRING Temp.Label String
         deriving (Eq, Show)
 
-wordSize :: Int
-wordSize = 32
+wordSize :: T.Exp
+wordSize = T.CONST 32
 
 exp :: Access -> T.Exp -> T.Exp
 exp (InFrame k) e = T.MEM (T.BINOP T.PLUS e (T.CONST k))
 exp (InReg t) _ = T.TEMP t
 
--- externalCall :: String -> [T.Exp] -> T.Exp
--- externalCall s = T.CALL (T.NAME $ Temp.namedLabel s)
+externalCall :: String -> [T.Exp] -> T.Exp
+externalCall s = T.CALL (T.NAME $ Temp.namedLabel s)
 
 procEntryExit1 :: FrameBase f => (f, T.Stm) -> T.Stm
 procEntryExit1 (frame, body) = body

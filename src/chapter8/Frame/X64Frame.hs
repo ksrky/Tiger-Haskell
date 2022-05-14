@@ -30,8 +30,7 @@ newFrame lab escs = do
     where
         calcformals :: (Bool, Int) -> State Temp.TempState Frame.Access
         calcformals (True, n) = return (Frame.InFrame (- n))
-        calcformals (False, _) = do
-                Frame.InReg <$> Temp.newTemp
+        calcformals (False, _) = Frame.InReg <$> Temp.newTemp
 
 allocLocal :: Frame -> Bool -> State Temp.TempState Frame
 allocLocal frm True = do

@@ -11,7 +11,6 @@ data Frame = Frame
         , formals :: [Frame.Access]
         , locals :: [Frame.Access]
         , fp :: Temp.Temp
-        , rv :: Temp.Temp
         }
         deriving (Eq, Show)
 
@@ -22,17 +21,12 @@ instance Frame.FrameBase Frame where
         locals = locals
         allocLocal = allocLocal
         fp = fp
-        rv = rv
-
-wordSize :: Int
-wordSize = 3 --tmp 3
+        rv = undefined
 
 newFrame :: Temp.Label -> [Bool] -> State Temp.TempState Frame
 newFrame lab escs = do
         fmls <- mapM calcformals (zip escs [0 ..])
-        fp <- Temp.newTemp
-        rv <- Temp.newTemp
-        return (Frame lab fmls [] fp rv)
+        gets (Frame lab fmls [] . Temp.temps)
     where
         calcformals :: (Bool, Int) -> State Temp.TempState Frame.Access
         calcformals (True, n) = return (Frame.InFrame (- n))
