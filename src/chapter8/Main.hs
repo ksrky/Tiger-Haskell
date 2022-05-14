@@ -2,6 +2,7 @@ module Main where
 
 import Common.Temp
 import Semant.Env
+import Semant.FindEscape
 import Semant.Semant
 import Semant.Translate
 import Syntax.Lexer
@@ -45,4 +46,11 @@ processFile (n : ns) = do
 process :: SemantState -> String -> IO ()
 process st input = case runAlex input parse of
         Left err -> putStrLn err
-        Right exp -> print $ transExp st exp
+        Right exp -> do
+                let exp' = findEscape exp
+                case transExp st exp' of
+                        Left err -> print err
+                        Right (ExpTy expr _) -> case expr of
+                                Ex e -> print e
+                                Nx s -> print s
+                                Cx _ -> error ""
