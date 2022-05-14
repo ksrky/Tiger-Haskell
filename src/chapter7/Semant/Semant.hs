@@ -45,8 +45,6 @@ modifyTEnv key val = do
         let tenv' = S.enter tenv key val
         put st{tenv = tenv'}
 
-newtype Semant a = Semant (StateT Temp.TempState (StateT SemantState (Either Err.Error)) a)
-
 initState :: SemantState
 initState = SS E.baseVEnv E.baseTEnv TL.topLevel Temp.emptyState
 

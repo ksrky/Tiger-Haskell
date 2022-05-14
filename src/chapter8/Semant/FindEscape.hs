@@ -76,7 +76,7 @@ traverseExp dep = traExp
                 eenv' <- get
                 let esc' = case S.look eenv' name of
                         Just (d, e) -> e
-                        Nothing -> True --error
+                        Nothing -> True -- error
                 return $ A.ForExp name esc' lo' hi' body' pos
         traExp (A.LetExp decs body pos) = do
                 eenv <- get
