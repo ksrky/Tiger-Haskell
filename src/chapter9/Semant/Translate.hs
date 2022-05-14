@@ -224,7 +224,7 @@ ifExp test then' else' = do
                                 )
                                 (T.TEMP r)
 
-whileExp :: Exp -> Exp -> State Temp.TempState Exp --tmp: break nasi
+whileExp :: Exp -> Exp -> State Temp.TempState Exp
 whileExp test body = do
         let genstm = unCx test
         body' <- unNx body
