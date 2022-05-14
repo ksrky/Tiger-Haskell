@@ -12,7 +12,6 @@ import Control.Monad.Trans
 
 import System.Console.Haskeline
 import System.Environment
-import System.IO
 
 main :: IO ()
 main = do

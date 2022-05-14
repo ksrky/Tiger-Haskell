@@ -1,12 +1,15 @@
-# Tiger in Haskell - Chapter 5
+# Tiger in Haskell - Chapter 6
 
 ## REPL
+
 ```command
 $ stack exec chapter6
 ```
 
 ## File test
+
 ```command
 $ stack exec chapter6 <file_number>
 ```
-where *file_number* is 1 to 49
+
+where _file_number_ is 1 to 49
