@@ -1,7 +1,6 @@
 module Semant.Env where
 
 import qualified Common.Symbol as S
-import qualified Common.Temp as Temp
 import qualified Semant.Types as T
 
 data EnvEntry
