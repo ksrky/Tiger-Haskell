@@ -1,18 +1,18 @@
-name:                Tiger
-version:             0.1.0.0
-github:              "ksrky/Tiger"
-license:             BSD3
-author:              "ksrk"
-maintainer:          "example@example.com"
-copyright:           "2022 ksrk"
+name: Tiger
+version: 0.1.0.0
+github: "ksrky/Tiger"
+license: BSD3
+author: "ksrk"
+maintainer: "example@example.com"
+copyright: "2022 ksrk"
 
 extra-source-files:
-- README.md
-- ChangeLog.md
+  - README.md
+  - ChangeLog.md
 
 build-tools:
-- alex
-- happy
+  - alex
+  - happy
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -21,92 +21,99 @@ build-tools:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/ksrky/Tiger#readme>
+description: Please see the README on GitHub at <https://github.com/ksrky/Tiger#readme>
 
 dependencies:
-- base >= 4.7 && < 5
-- array
-- containers
-- text
-- mtl
-- hspec
-- haskeline
+  - base >= 4.7 && < 5
+  - array
+  - containers
+  - text
+  - mtl
+  - hspec
+  - haskeline
 
 library:
   source-dirs: src
 
 executables:
   chapter2:
-    main:                Main.hs
-    source-dirs:         src/chapter2
+    main: Main.hs
+    source-dirs: src/chapter2
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
   chapter3:
-    main:                Main.hs
-    source-dirs:         src/chapter3
+    main: Main.hs
+    source-dirs: src/chapter3
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
   chapter4:
-    main:                Main.hs
-    source-dirs:         src/chapter4
+    main: Main.hs
+    source-dirs: src/chapter4
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
   chapter5a:
-    main:                Main.hs
-    source-dirs:         src/chapter5a
+    main: Main.hs
+    source-dirs: src/chapter5a
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
   chapter5b:
-    main:                Main.hs
-    source-dirs:         src/chapter5b
+    main: Main.hs
+    source-dirs: src/chapter5b
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
   chapter6:
-    main:                Main.hs
-    source-dirs:         src/chapter6
+    main: Main.hs
+    source-dirs: src/chapter6
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
   chapter7:
-    main:                Main.hs
-    source-dirs:         src/chapter7
+    main: Main.hs
+    source-dirs: src/chapter7
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
   chapter8:
-    main:                Main.hs
-    source-dirs:         src/chapter8
+    main: Main.hs
+    source-dirs: src/chapter8
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
   chapter9:
-    main:                Main.hs
-    source-dirs:         src/chapter9
+    main: Main.hs
+    source-dirs: src/chapter9
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+  chapter10:
+    main: Main.hs
+    source-dirs: src/chapter10
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
   llvm:
-    main:                Main.hs
-    source-dirs:         src/llvm
+    main: Main.hs
+    source-dirs: src/llvm
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - bytestring
-    - llvm-hs-pure
-    - llvm-hs-pretty
+      - bytestring
+      - llvm-hs-pure
+      - llvm-hs-pretty
