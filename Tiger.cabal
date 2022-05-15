@@ -48,6 +48,10 @@ executable chapter10
       Common.Temp
       Compiler.Assem
       Compiler.Codegen
+      Compiler.Flow
+      Compiler.Graph
+      Compiler.Liveness
+      Compiler.MakeGraph
       Frame.Frame
       Frame.X64Frame
       IR.Canon

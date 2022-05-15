@@ -27,7 +27,7 @@ $ cabal run <executable> <option>
 - [Chapter 7](https://github.com/ksrky/Tiger/tree/master/src/chapter7/README.md)
 - [Chapter 8](https://github.com/ksrky/Tiger/tree/master/src/chapter8/README.md)
 - [Chapter 9](https://github.com/ksrky/Tiger/tree/master/src/chapter9/README.md)
-- Chapter 10
+- [Chapter 10](https://github.com/ksrky/Tiger/tree/master/src/chapter10/README.md)
 - Chapter 11
 - Chapter 12
 
