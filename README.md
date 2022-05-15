@@ -1,5 +1,7 @@
 # Tiger in Haskell
 
+[![Haskell CI](https://github.com/ksrky/Tiger/actions/workflows/haskell.yml/badge.svg)](https://github.com/ksrky/Tiger/actions/workflows/haskell.yml)
+
 Tiger in Haskell is the Haskell implementation of Andrew Appel's "Modern Compiler Implementation in ML".
 Haskell is a purely functional language unlike ML, so there are some changes from the original specifications.
 Please see the implementation notes of each chapter.

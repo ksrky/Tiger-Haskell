@@ -7,13 +7,13 @@ import Control.Monad.Trans
 
 import System.Console.Haskeline
 import System.Environment
-import System.IO
 
 main :: IO ()
 main = do
         args <- getArgs
         case args of
                 [] -> repl
+                "all" : _ -> processFile [1 .. 49]
                 ns -> processFile (map read ns)
 
 repl :: IO ()
@@ -32,7 +32,9 @@ processFile [] = return ()
 processFile (n : ns) = do
         let fname = "testcases/test" ++ show n ++ ".tig"
         contents <- readFile fname
+        putStrLn $ "----------" ++ fname ++ "----------"
         process contents
+        putStrLn ""
         processFile ns
 
 process :: String -> IO ()
