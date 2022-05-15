@@ -19,11 +19,10 @@ format saytemp = format'
         speak :: String -> [Temp.Temp] -> [Temp.Temp] -> [Temp.Label] -> String
         speak assem dst src jump = f assem
             where
-                saylab = Symbol.name
                 f :: String -> String
                 f ('`' : 's' : i : rest) = saytemp (src !! read [i]) ++ f rest
                 f ('`' : 'd' : i : rest) = saytemp (dst !! read [i]) ++ f rest
-                f ('`' : 'j' : i : rest) = saylab (jump !! read [i]) ++ f rest
+                f ('`' : 'j' : i : rest) = Symbol.name (jump !! read [i]) ++ f rest
                 f ('`' : '`' : rest) = '`' : f rest
                 f ('`' : _ : rest) = error "impossible: bad assem format"
                 f (c : rest) = c : f rest

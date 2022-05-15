@@ -89,7 +89,7 @@ transVar st@(SS venv tenv lev tst) = trvar
                 ExpTy var' ty <- trvar var
                 case ty of
                         T.RECORD _ fs -> case lookup sym fs of
-                                Nothing -> lift $ Err.otherError ("field not found" ++ sym) pos
+                                Nothing -> lift $ Err.otherError ("field not found" ++ show sym) pos
                                 Just ty' -> do
                                         let Just idx = elemIndex sym (map fst fs)
                                         expr <- mkT $ TL.lvalueVar var' (TL.intExp idx)
@@ -177,14 +177,14 @@ transExp st@(SS venv tenv lev tst) exp = evalStateT (trexp exp) tst
                                 isRecord ty'
                         T.RECORD _ fields -> return fields
                         _ -> Err.wrongType "record type" (show ty) pos
-                checkrecord :: [(A.Symbol, (A.Exp, A.Pos))] -> [(S.Symbol, T.Ty)] -> StateT Temp.TempState (Either Err.Error) ()
+                checkrecord :: [(S.Symbol, (A.Exp, A.Pos))] -> [(S.Symbol, T.Ty)] -> StateT Temp.TempState (Either Err.Error) ()
                 checkrecord _ [] = return ()
                 checkrecord fs ((s, t) : sts) = case lookup s fs of
                         Just (e, p) -> do
                                 ty <- exptyTy <$> trexp e
                                 lift $ (t `match` ty) tenv pos
                                 checkrecord fs sts
-                        Nothing -> lift $ Err.otherError ("record field not found" ++ s) pos
+                        Nothing -> lift $ Err.otherError ("record field not found" ++ show s) pos
         trexp (A.SeqExp seqexp pos) = do
                 exps <- map exptyExp <$> mapM trexp seqexp
                 expr <- mkT $ TL.seqExp exps
@@ -251,7 +251,7 @@ transExp st@(SS venv tenv lev tst) exp = evalStateT (trexp exp) tst
 ------------------------------------------------------------------
 -- Translate declarations
 ------------------------------------------------------------------
-type TypeDec = (A.Symbol, A.Pos)
+type TypeDec = (S.Symbol, A.Pos)
 type FunDec = (S.Symbol, [(S.Symbol, T.Ty, Bool)], T.Ty, A.Exp, A.Pos)
 
 transDecs :: [A.Dec] -> StateT SemantState (Either Err.Error) [TL.Exp]
@@ -268,7 +268,7 @@ transDecs decs = do
                 tenv <- gets tenv
                 lev <- gets level
                 lift $ case S.look tenv name of
-                        Just (lev_dec, ty) | TL.name lev == TL.name lev_dec -> Err.returnErr_ (Err.MultipleDeclarations name) pos
+                        Just (lev_dec, ty) | TL.name lev == TL.name lev_dec -> Err.multipleDeclarations name pos
                         _ -> return ()
                 convTEnv $ S.enter name (lev, T.Temp ty)
                 return [(name, pos)]
@@ -278,7 +278,7 @@ transDecs decs = do
                 venv <- gets venv
                 lev <- gets level
                 lift $ case S.look venv name of
-                        Just E.FunEntry{E.level = lev_dec} | TL.name lev_dec == TL.name lev -> Err.returnErr_ (Err.MultipleDeclarations name) pos
+                        Just E.FunEntry{E.level = lev_dec} | TL.name lev_dec == TL.name lev -> Err.multipleDeclarations name pos
                         _ -> return ()
                 tenv <- gets tenv
                 params' <- lift $
@@ -289,7 +289,7 @@ transDecs decs = do
                         Just (typ, pos) -> lookty tenv typ pos
                         Nothing -> return T.UNIT
                 lev' <- convTempState (TL.newLevel lev (map A.fieldEscape params))
-                let fun = E.FunEntry lev' (Temp.namedLabel name) (map (\(_, x, _) -> x) params') result_ty
+                let fun = E.FunEntry lev' name (map (\(_, x, _) -> x) params') result_ty
                 convVEnv $ S.enter name fun
                 return [(name, params', result_ty, body, pos)]
         regisFunDec _ = return []
@@ -333,7 +333,7 @@ transDecs decs = do
 ------------------------------------------------------------------
 -- Translate types
 ------------------------------------------------------------------
-transTy :: (A.Symbol, A.Pos) -> StateT SemantState (Either Err.Error) T.Ty
+transTy :: (S.Symbol, A.Pos) -> StateT SemantState (Either Err.Error) T.Ty
 transTy (name, pos) = do
         tenv <- gets tenv
         ty <- convTEnv $ transTy' [] (name, pos)
@@ -341,12 +341,12 @@ transTy (name, pos) = do
         convTEnv $ S.enter name (lev, ty)
         return ty
 
-transTy' :: [A.Symbol] -> (A.Symbol, A.Pos) -> StateT TEnv (Either Err.Error) T.Ty
+transTy' :: [S.Symbol] -> (S.Symbol, A.Pos) -> StateT TEnv (Either Err.Error) T.Ty
 transTy' checked (name, pos) = do
         tenv <- get
         case S.look tenv name of
                 Just (_, T.Temp (A.NameTy typ p)) -> do
-                        lift $ when (name `elem` checked) $ Err.returnErr_ (Err.CyclicDefinition name) pos
+                        lift $ when (name `elem` checked) $ Err.cyclicDefinition name pos
                         transTy' (checked ++ [name]) (typ, pos)
                 Just (lev, T.Temp (A.RecordTy fields))
                         | name `elem` checked -> return $ T.Ref name

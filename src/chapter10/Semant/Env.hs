@@ -15,16 +15,16 @@ type BaseVEnv = S.Table EnvEntry
 baseTEnv :: BaseTEnv
 baseTEnv =
         S.new
-                [ ("int", (TL.Outermost, T.INT))
-                , ("string", (TL.Outermost, T.STRING))
-                , ("nil", (TL.Outermost, T.NIL))
+                [ (S.symbol "int", (TL.Outermost, T.INT))
+                , (S.symbol "string", (TL.Outermost, T.STRING))
+                , (S.symbol "nil", (TL.Outermost, T.NIL))
                 ]
 
 baseVEnv :: BaseVEnv
 baseVEnv = S.new $ map funentry reserved
     where
-        funentry :: (S.Symbol, [T.Ty], T.Ty) -> (String, EnvEntry)
-        funentry (name, fmls, res) = (name, FunEntry TL.Outermost (Temp.namedLabel name) fmls res)
+        funentry :: (String, [T.Ty], T.Ty) -> (S.Symbol, EnvEntry)
+        funentry (name, fmls, res) = (S.symbol name, FunEntry TL.Outermost (Temp.namedLabel name) fmls res)
         reserved =
                 [ ("print", [T.STRING], T.UNIT)
                 , ("flush", [], T.UNIT)

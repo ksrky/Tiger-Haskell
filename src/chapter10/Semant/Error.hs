@@ -1,5 +1,6 @@
 module Semant.Error where
 
+import qualified Common.Symbol as S
 import qualified Syntax.Absyn as A
 
 data Error = Error {message :: String, kind :: ErrorKind, position :: A.Pos}
@@ -40,14 +41,14 @@ returnErr s k p = Left $ Error s k p
 returnErr_ :: ErrorKind -> A.Pos -> Either Error a
 returnErr_ = returnErr ""
 
-unknownVariable :: String -> A.Pos -> Either Error a
-unknownVariable ident = returnErr_ $ UnknownVariable ident
+unknownVariable :: S.Symbol -> A.Pos -> Either Error a
+unknownVariable ident = returnErr_ $ UnknownVariable $ show ident
 
-unknownFunction :: String -> A.Pos -> Either Error a
-unknownFunction func = returnErr_ $ UnknownFunction func
+unknownFunction :: S.Symbol -> A.Pos -> Either Error a
+unknownFunction func = returnErr_ $ UnknownFunction $ show func
 
-unknownType :: String -> A.Pos -> Either Error a
-unknownType typ = returnErr_ $ UnknownType typ
+unknownType :: S.Symbol -> A.Pos -> Either Error a
+unknownType typ = returnErr_ $ UnknownType $ show typ
 
 typeMismatch :: String -> String -> A.Pos -> Either Error a
 typeMismatch expected got = returnErr_ $ TypeMismatch expected got
@@ -58,14 +59,14 @@ wrongType required got = returnErr_ $ WrongType required got
 wrongNumberArgs :: Int -> Int -> A.Pos -> Either Error a
 wrongNumberArgs expected got = returnErr_ $ WrongNumberArgs (show expected) (show got)
 
-cyclicDefinition :: String -> A.Pos -> Either Error a
-cyclicDefinition typ = returnErr_ $ CyclicDefinition typ
+cyclicDefinition :: S.Symbol -> A.Pos -> Either Error a
+cyclicDefinition typ = returnErr_ $ CyclicDefinition $ show typ
 
-imperfectDefinition :: String -> A.Pos -> Either Error a
-imperfectDefinition typ = returnErr_ $ ImperfectDefinition typ
+imperfectDefinition :: S.Symbol -> A.Pos -> Either Error a
+imperfectDefinition typ = returnErr_ $ ImperfectDefinition $ show typ
 
-multipleDeclarations :: String -> A.Pos -> Either Error a
-multipleDeclarations name = returnErr_ $ MultipleDeclarations name
+multipleDeclarations :: S.Symbol -> A.Pos -> Either Error a
+multipleDeclarations name = returnErr_ $ MultipleDeclarations $ show name
 
 invalidComparison :: String -> String -> String -> A.Pos -> Either Error a
 invalidComparison ltyp rtyp op = returnErr_ $ InvalidComparison ltyp rtyp op

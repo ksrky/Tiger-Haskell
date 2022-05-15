@@ -1,11 +1,11 @@
 module Common.Temp where
 
-import qualified Common.Symbol as Symbol
+import qualified Common.Symbol as S
 
 import Control.Monad.State (MonadState (state), State)
 
 type Temp = Int
-type Label = Symbol.Symbol
+type Label = S.Symbol
 
 data TempState = TS {temps :: Temp, labs :: Int}
 
@@ -19,7 +19,7 @@ makeString :: Int -> String
 makeString t = "t" ++ show t
 
 newLabel :: State TempState Label
-newLabel = state (\(TS t l) -> ("L" ++ show l, TS t (l + 1)))
+newLabel = state (\(TS t l) -> (S.symbol $ "L" ++ show l, TS t (l + 1)))
 
 namedLabel :: String -> Label
-namedLabel = Symbol.symbol
+namedLabel = S.symbol

@@ -1,17 +1,18 @@
 module Common.Symbol where
 
-import Control.Monad.State
+import Control.Monad.State (StateT, modify)
 import qualified Data.Map.Strict as M
+import Data.Text (Text, pack, unpack)
 
-type Symbol = String
+type Symbol = Text
 
 type Table a = M.Map Symbol a
 
 symbol :: String -> Symbol
-symbol = id
+symbol = pack
 
 name :: Symbol -> String
-name = id
+name = unpack
 
 new :: [(Symbol, a)] -> Table a
 new = M.fromList

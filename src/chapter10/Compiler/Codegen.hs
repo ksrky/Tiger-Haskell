@@ -90,7 +90,7 @@ munchStm (T.MOVE (T.TEMP i) e2) = do
                         , A.jump = Nothing
                         }
                 )
-munchStm (T.LABEL lab) = emit A.LABEL{A.assem = lab ++ ":\n", A.lab = lab}
+munchStm (T.LABEL lab) = emit A.LABEL{A.assem = show lab ++ ":\n", A.lab = lab}
 munchStm (T.EXP (T.CALL e args)) = do
         e' <- munchExp e
         args' <- forM args munchExp
