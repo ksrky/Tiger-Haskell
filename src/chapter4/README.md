@@ -12,7 +12,7 @@ $ stack exec chapter4
 $ stack exec chapter4 <args>
 ```
 
-where _args_ := all | [*file_number*]\*
+where _args_ := all | _file_number_\+
 
 ## Implematation notes
 

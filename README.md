@@ -36,8 +36,8 @@ $ cabal run <executable> <option>
 
 ## Part I
 
-- Chapter 2
-- Chapter 3
+- [Chapter 2](https://github.com/ksrky/Tiger/tree/master/src/chapter2)
+- [Chapter 3](https://github.com/ksrky/Tiger/tree/master/src/chapter3)
 - [Chapter 4](https://github.com/ksrky/Tiger/tree/master/src/chapter4)
 - [Chapter 5a](https://github.com/ksrky/Tiger/tree/master/src/chapter5a)
 - [Chapter 5b](https://github.com/ksrky/Tiger/tree/master/src/chapter5b)

@@ -9,7 +9,7 @@ $ stack exec chapter6
 ## File test
 
 ```command
-$ stack exec chapter6 <file_number>
+$ stack exec chapter6 <args>
 ```
 
-where _file_number_ is 1 to 49
+where _args_ := all | _file_number_\+
