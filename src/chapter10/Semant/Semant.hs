@@ -56,7 +56,7 @@ match :: T.Ty -> T.Ty -> TEnv -> A.Pos -> Either Err.Error ()
 match lty rty tenv pos = do
         lty' <- actualTy lty
         rty' <- actualTy rty
-        if lty' == rty' || T.NIL == lty' || T.NIL == rty'
+        if lty' == rty' || lty' == T.NIL || T.NIL == rty'
                 then return ()
                 else Err.typeMismatch (show lty) (show rty) pos
     where
@@ -73,6 +73,9 @@ lookty :: TEnv -> S.Symbol -> A.Pos -> Either Err.Error T.Ty
 lookty tenv typ pos = case S.look tenv typ of
         Nothing -> Err.unknownType typ pos
         Just (_, ty) -> return ty
+
+mkT :: State Temp.TempState a -> StateT Temp.TempState (Either Err.Error) a
+mkT s = StateT $ \a -> return (runState s a)
 
 ------------------------------------------------------------------
 -- Translate variables
@@ -99,7 +102,7 @@ transVar st@(SS venv tenv lev tst) = trvar
                 ExpTy var' ty <- trvar var
                 case ty of
                         T.ARRAY _ ty' -> do
-                                ExpTy idx ty'' <- lift $transExp st exp
+                                ExpTy idx ty'' <- lift $ transExp st exp
                                 lift $ (T.INT `match` ty'') tenv pos
                                 expr <- mkT $ TL.lvalueVar var' idx
                                 return $ ExpTy expr ty'
@@ -108,9 +111,6 @@ transVar st@(SS venv tenv lev tst) = trvar
 ------------------------------------------------------------------
 -- Translate expressions
 ------------------------------------------------------------------
-mkT :: State Temp.TempState a -> StateT Temp.TempState (Either Err.Error) a
-mkT s = StateT $ \a -> return (runState s a)
-
 transExp :: SemantState -> A.Exp -> Either Err.Error ExpTy
 transExp st@(SS venv tenv lev tst) exp = evalStateT (trexp exp) tst
     where

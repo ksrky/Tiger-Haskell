@@ -4,7 +4,7 @@
 
 Tiger in Haskell is the Haskell implementation of Andrew Appel's "Modern Compiler Implementation in ML".
 Haskell is a purely functional language unlike ML, so there are some changes from the original specifications.
-Please see the implementation notes of each chapter.
+Please see the implementation notes in each chapter.
 
 ## Prerequisities
 
