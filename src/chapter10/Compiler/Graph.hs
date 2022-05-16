@@ -81,7 +81,7 @@ newNode = do
         look :: Graph -> Node -> Node -> State Graph Node
         look g lo hi
                 | lo == hi = do
-                        put (g V.++ newGraph)
+                        put (V.snoc g emptyNode)
                         return lo
                 | isBogus (g V.! m) = look g lo m
                 | otherwise = look g (m + 1) hi
@@ -89,7 +89,7 @@ newNode = do
                 m = (lo + hi) `div` 2
 
 update :: Node -> Noderep -> State Graph ()
-update i e = undefined
+update i e = modify $ flip (V.//) [(i, e)]
 
 diddleEdge :: (Node -> [Node] -> [Node]) -> Node -> Node -> State Graph ()
 diddleEdge change i j = do
@@ -106,7 +106,10 @@ rmEdge :: Node -> Node -> State Graph ()
 rmEdge = diddleEdge delete
 
 -- Table
-newtype Table a = Table [(Node, a)]
+type Table a = M.Map Node a
+
+new :: Node -> a -> Table a
+new k v = M.fromList [(k, v)]
 
 enter :: Node -> a -> State (Table a) ()
-enter n v = state $ \(Table list) -> ((), Table ((n, v) : list))
+enter n v = state $ \table -> ((), M.insert n v table)
