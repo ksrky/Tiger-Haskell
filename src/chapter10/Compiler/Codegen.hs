@@ -25,7 +25,6 @@ emit :: A.Instr -> State CodegenState ()
 emit inst = state $ \cgn -> ((), cgn{ilist = inst : ilist cgn})
 
 munchStm :: T.Stm -> State CodegenState ()
-munchStm (T.SEQ a b) = munchStm a >> munchStm b
 munchStm (T.MOVE (T.MEM (T.BINOP T.PLUS e1 (T.CONST i))) e2) = do
         e1' <- munchExp e1
         e2' <- munchExp e2
@@ -83,14 +82,13 @@ munchStm (T.MOVE (T.MEM e1) e2) = do
 munchStm (T.MOVE (T.TEMP i) e2) = do
         e2' <- munchExp e2
         emit
-                ( A.OPER
+                ( A.MOVE --tmp: sample code is wrong?
                         { A.assem = "ADD    `d0 <- `s0 + r0\n"
-                        , A.src = [e2']
-                        , A.dst = [i]
-                        , A.jump = Nothing
+                        , A.src' = e2'
+                        , A.dst' = i
                         }
                 )
-munchStm (T.LABEL lab) = emit A.LABEL{A.assem = show lab ++ ":\n", A.lab = lab}
+munchStm (T.MOVE _ _) = error "impossible: bad IR tree"
 munchStm (T.EXP (T.CALL e args)) = do
         e' <- munchExp e
         args' <- forM args munchExp
@@ -103,7 +101,11 @@ munchStm (T.EXP (T.CALL e args)) = do
                         , A.jump = Nothing
                         }
                 )
-munchStm _ = undefined
+munchStm (T.EXP e) = void $ munchExp e
+munchStm T.JUMP{} = error "impossible: bad IR tree"
+munchStm T.CJUMP{} = error "impossible: bad IR tree"
+munchStm (T.SEQ a b) = munchStm a >> munchStm b
+munchStm (T.LABEL lab) = emit A.LABEL{A.assem = show lab ++ ":\n", A.lab = lab}
 
 result :: (Temp.Temp -> State CodegenState ()) -> State CodegenState Temp.Temp
 result gen = do
@@ -112,6 +114,8 @@ result gen = do
         return t
 
 munchExp :: T.Exp -> State CodegenState Temp.Temp
+munchExp (T.NAME _) = error "impossible: bad IR tree"
+munchExp (T.TEMP t) = return t
 munchExp (T.MEM (T.BINOP T.PLUS e1 (T.CONST i))) = do
         e1' <- munchExp e1
         result $ \r ->
@@ -177,6 +181,17 @@ munchExp (T.BINOP T.PLUS (T.CONST i) e1) = do
                                 , A.jump = Nothing
                                 }
                         )
+munchExp (T.BINOP T.MINUS e1 (T.CONST i)) = do
+        e1' <- munchExp e1
+        result $ \r ->
+                emit
+                        ( A.OPER
+                                { A.assem = "SUBI `d0 <- `s0-" ++ show i ++ "\n"
+                                , A.src = [e1']
+                                , A.dst = [r]
+                                , A.jump = Nothing
+                                }
+                        )
 munchExp (T.CONST i) = do
         result $ \r ->
                 emit
@@ -199,5 +214,40 @@ munchExp (T.BINOP T.PLUS e1 e2) = do
                                 , A.jump = Nothing
                                 }
                         )
-munchExp (T.TEMP t) = return t
-munchExp _ = undefined
+munchExp (T.BINOP T.MINUS e1 e2) = do
+        e1' <- munchExp e1
+        e2' <- munchExp e2
+        result $ \r ->
+                emit
+                        ( A.OPER
+                                { A.assem = "SUB    `d0 <- `s0-`s1\n"
+                                , A.src = [e1', e2']
+                                , A.dst = [r]
+                                , A.jump = Nothing
+                                }
+                        )
+munchExp (T.BINOP T.MUL e1 e2) = do
+        e1' <- munchExp e1
+        e2' <- munchExp e2
+        result $ \r ->
+                emit
+                        ( A.OPER
+                                { A.assem = "MUL    `d0 <- `s0*`s1\n"
+                                , A.src = [e1', e2']
+                                , A.dst = [r]
+                                , A.jump = Nothing
+                                }
+                        )
+munchExp (T.BINOP T.DIV e1 e2) = do
+        e1' <- munchExp e1
+        e2' <- munchExp e2
+        result $ \r ->
+                emit
+                        ( A.OPER
+                                { A.assem = "DIV    `d0 <- `s0/`s1\n"
+                                , A.src = [e1', e2']
+                                , A.dst = [r]
+                                , A.jump = Nothing
+                                }
+                        )
+munchExp _ = error "impossible: bad IR tree"

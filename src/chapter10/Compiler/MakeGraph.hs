@@ -19,4 +19,4 @@ i2g (A.OPER assem src dst jump) = do
         g <- lift get
         put fg{F.control = g, F.def = def, F.use = use, F.ismove = ismove}
         return i
-i2g _ = undefined
+i2g _ = lift G.newNode

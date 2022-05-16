@@ -8,6 +8,9 @@ import Data.List (delete)
 import qualified Data.Map.Strict as M
 import qualified Data.Vector as V
 
+------------------------------------------------------------------
+-- Node
+------------------------------------------------------------------
 type Node = Int
 
 data Noderep = Node {succ :: [Node], pred :: [Node]} deriving (Eq)
@@ -22,15 +25,13 @@ isBogus :: Noderep -> Bool
 isBogus Node{succ = (-1 : _)} = True
 isBogus _ = False
 
+------------------------------------------------------------------
+-- Graph
+------------------------------------------------------------------
 type Graph = V.Vector Noderep
 
---nodes :: Graph -> [Node]
---nodes g = f 0
---    where
---        f i =
---                if isBogus (g !! i)
---                        then []
---                        else (g, i) : f (i + 1)
+newGraph :: Graph
+newGraph = V.empty
 
 nodes :: Graph -> [Node]
 nodes g = f 0
@@ -39,21 +40,11 @@ nodes g = f 0
                 | isBogus (g V.! i) = []
                 | otherwise = i : f (i + 1)
 
---succ' :: Node -> [Node]
---succ' (g, i) = map (augment g) s
---    where
---        Node{succ = s} = g !! i
-
 succ' :: Node -> State Graph [Node]
 succ' i = do
         g <- get
         let Node{succ = s} = g V.! i
         return s
-
---pred' :: Node -> [Node]
---pred' (g, i) = map (augment g) p
---    where
---        Node{pred = p} = g !! i
 
 pred' :: Node -> State Graph [Node]
 pred' i = do
@@ -64,14 +55,8 @@ pred' i = do
 adj :: Node -> State Graph [Node]
 adj gi = (++) <$> pred' gi <*> succ' gi
 
---eq :: Node -> Node -> Bool
---eq (_, a) (_, b) = a == b
-
---augment :: Graph -> Node' -> Node
---augment g n = (g, n)
-
-newGraph :: Graph
-newGraph = undefined --[bogusNode]
+update :: Node -> Noderep -> State Graph ()
+update i e = modify $ flip (V.//) [(i, e)]
 
 newNode :: State Graph Node
 newNode = do
@@ -88,9 +73,6 @@ newNode = do
             where
                 m = (lo + hi) `div` 2
 
-update :: Node -> Noderep -> State Graph ()
-update i e = modify $ flip (V.//) [(i, e)]
-
 diddleEdge :: (Node -> [Node] -> [Node]) -> Node -> Node -> State Graph ()
 diddleEdge change i j = do
         g <- get
@@ -103,9 +85,11 @@ mkEdge :: Node -> Node -> State Graph ()
 mkEdge = diddleEdge (:)
 
 rmEdge :: Node -> Node -> State Graph ()
-rmEdge = diddleEdge delete
+rmEdge = diddleEdge Data.List.delete
 
+------------------------------------------------------------------
 -- Table
+------------------------------------------------------------------
 type Table a = M.Map Node a
 
 new :: Node -> a -> Table a
