@@ -11,3 +11,6 @@ data FlowGraph = FGraph
         , use :: G.Table [Temp.Temp]
         , ismove :: G.Table Bool
         }
+
+newFlowGraph :: FlowGraph
+newFlowGraph = FGraph G.newGraph G.newTable G.newTable G.newTable

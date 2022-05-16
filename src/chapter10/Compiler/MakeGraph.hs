@@ -6,17 +6,28 @@ import qualified Compiler.Graph as G
 
 import Control.Monad.State
 
-instrs2graph :: [A.Instr] -> (F.FlowGraph, [G.Node])
-instrs2graph instrs = undefined
+instrs2graph :: [A.Instr] -> ([G.Node], F.FlowGraph)
+instrs2graph instrs = mapM i2g instrs `runState` F.newFlowGraph
 
-i2g :: A.Instr -> StateT F.FlowGraph (State G.Graph) G.Node
-i2g (A.OPER assem src dst jump) = do
+i2g :: A.Instr -> State F.FlowGraph G.Node
+i2g (A.OPER assem dst src jump) = do
         fg <- get
-        i <- lift G.newNode
-        let def = G.enter i dst `execState` F.def fg
+        let (i, g) = G.newNode `runState` F.control fg
+            def = G.enter i dst `execState` F.def fg
             use = G.enter i src `execState` F.use fg
-            ismove = G.enter i (take 4 assem == "MOVE") `execState` F.ismove fg
-        g <- lift get
+            ismove = G.enter i False `execState` F.ismove fg
         put fg{F.control = g, F.def = def, F.use = use, F.ismove = ismove}
         return i
-i2g _ = lift G.newNode
+i2g A.LABEL{} = do
+        fg <- get
+        let (i, g) = G.newNode `runState` F.control fg
+        put fg{F.control = g}
+        return i
+i2g (A.MOVE assem dst src) = do
+        fg <- get
+        let (i, g) = G.newNode `runState` F.control fg
+            def = G.enter i [dst] `execState` F.def fg
+            use = G.enter i [src] `execState` F.use fg
+            ismove = G.enter i True `execState` F.ismove fg
+        put fg{F.control = g, F.def = def, F.use = use, F.ismove = ismove}
+        return i

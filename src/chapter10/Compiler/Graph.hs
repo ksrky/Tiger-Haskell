@@ -92,8 +92,8 @@ rmEdge = diddleEdge Data.List.delete
 ------------------------------------------------------------------
 type Table a = M.Map Node a
 
-new :: Node -> a -> Table a
-new k v = M.fromList [(k, v)]
+newTable :: Table a
+newTable = M.empty
 
 enter :: Node -> a -> State (Table a) ()
 enter n v = state $ \table -> ((), M.insert n v table)
