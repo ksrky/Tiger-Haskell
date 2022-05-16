@@ -39,6 +39,7 @@ library
     , hspec
     , mtl
     , text
+    , vector
   default-language: Haskell2010
 
 executable chapter10
@@ -83,6 +84,7 @@ executable chapter10
     , hspec
     , mtl
     , text
+    , vector
   default-language: Haskell2010
 
 executable chapter2
@@ -105,6 +107,7 @@ executable chapter2
     , hspec
     , mtl
     , text
+    , vector
   default-language: Haskell2010
 
 executable chapter3
@@ -128,6 +131,7 @@ executable chapter3
     , hspec
     , mtl
     , text
+    , vector
   default-language: Haskell2010
 
 executable chapter4
@@ -152,6 +156,7 @@ executable chapter4
     , hspec
     , mtl
     , text
+    , vector
   default-language: Haskell2010
 
 executable chapter5a
@@ -182,6 +187,7 @@ executable chapter5a
     , hspec
     , mtl
     , text
+    , vector
   default-language: Haskell2010
 
 executable chapter5b
@@ -212,6 +218,7 @@ executable chapter5b
     , hspec
     , mtl
     , text
+    , vector
   default-language: Haskell2010
 
 executable chapter6
@@ -247,6 +254,7 @@ executable chapter6
     , hspec
     , mtl
     , text
+    , vector
   default-language: Haskell2010
 
 executable chapter7
@@ -284,6 +292,7 @@ executable chapter7
     , hspec
     , mtl
     , text
+    , vector
   default-language: Haskell2010
 
 executable chapter8
@@ -322,6 +331,7 @@ executable chapter8
     , hspec
     , mtl
     , text
+    , vector
   default-language: Haskell2010
 
 executable chapter9
@@ -362,4 +372,5 @@ executable chapter9
     , hspec
     , mtl
     , text
+    , vector
   default-language: Haskell2010

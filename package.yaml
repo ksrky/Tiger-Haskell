@@ -28,6 +28,7 @@ dependencies:
   - array
   - containers
   - text
+  - vector
   - mtl
   - hspec
   - haskeline

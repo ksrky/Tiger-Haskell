@@ -3,11 +3,14 @@ module Compiler.Graph where
 import qualified Common.Temp as Temp
 import Prelude hiding (pred, succ)
 
+import Control.Monad.State
+import Data.List (delete)
 import qualified Data.Map.Strict as M
+import qualified Data.Vector as V
 
-type Node' = Int
+type Node = Int
 
-data Noderep = Node {succ :: [Node'], pred :: [Node']}
+data Noderep = Node {succ :: [Node], pred :: [Node]} deriving (Eq)
 
 emptyNode :: Noderep
 emptyNode = Node{succ = [], pred = []}
@@ -19,70 +22,91 @@ isBogus :: Noderep -> Bool
 isBogus Node{succ = (-1 : _)} = True
 isBogus _ = False
 
-type Graph = [Noderep]
+type Graph = V.Vector Noderep
 
-type Node = (Graph, Node')
+--nodes :: Graph -> [Node]
+--nodes g = f 0
+--    where
+--        f i =
+--                if isBogus (g !! i)
+--                        then []
+--                        else (g, i) : f (i + 1)
 
 nodes :: Graph -> [Node]
 nodes g = f 0
     where
-        f i =
-                if isBogus (g !! i)
-                        then []
-                        else (g, i) : f (i + 1)
+        f i
+                | isBogus (g V.! i) = []
+                | otherwise = i : f (i + 1)
 
-succ' :: Node -> [Node]
-succ' (g, i) = map (augment g) s
-    where
-        Node{succ = s} = g !! i
+--succ' :: Node -> [Node]
+--succ' (g, i) = map (augment g) s
+--    where
+--        Node{succ = s} = g !! i
 
-pred' :: Node -> [Node]
-pred' (g, i) = map (augment g) p
-    where
-        Node{pred = p} = g !! i
+succ' :: Node -> State Graph [Node]
+succ' i = do
+        g <- get
+        let Node{succ = s} = g V.! i
+        return s
 
-adj :: Node -> [Node]
-adj gi = pred' gi ++ succ' gi
+--pred' :: Node -> [Node]
+--pred' (g, i) = map (augment g) p
+--    where
+--        Node{pred = p} = g !! i
 
-eq :: Node -> Node -> Bool
-eq (_, a) (_, b) = a == b
+pred' :: Node -> State Graph [Node]
+pred' i = do
+        g <- get
+        let Node{pred = p} = g V.! i
+        return p
 
-augment :: Graph -> Node' -> Node
-augment g n = (g, n)
+adj :: Node -> State Graph [Node]
+adj gi = (++) <$> pred' gi <*> succ' gi
+
+--eq :: Node -> Node -> Bool
+--eq (_, a) (_, b) = a == b
+
+--augment :: Graph -> Node' -> Node
+--augment g n = (g, n)
 
 newGraph :: Graph
-newGraph = [bogusNode]
+newGraph = undefined --[bogusNode]
 
-newNode :: Graph -> Node
-newNode g = look 0 (1 + 3)
+newNode :: State Graph Node
+newNode = do
+        g <- get
+        look g 0 (length g)
     where
-        look lo hi
-                | lo == hi = undefined
-                | isBogus (g !! m) = look lo m
-                | otherwise = look (m + 1) hi
+        look :: Graph -> Node -> Node -> State Graph Node
+        look g lo hi
+                | lo == hi = do
+                        put (g V.++ newGraph)
+                        return lo
+                | isBogus (g V.! m) = look g lo m
+                | otherwise = look g (m + 1) hi
             where
                 m = (lo + hi) `div` 2
 
-{-}
-check g g' = error ""
+update :: Node -> Noderep -> State Graph ()
+update i e = undefined
 
-delete (i, j : rest) = if i == j then rest else j : delete (i, rest)
-delete (_, []) = error ""
+diddleEdge :: (Node -> [Node] -> [Node]) -> Node -> Node -> State Graph ()
+diddleEdge change i j = do
+        g <- get
+        let ni = g V.! i
+            nj = g V.! j
+        update i ni{succ = change j (succ ni)}
+        update j nj{pred = change i (succ nj)}
 
-didleEdge change (g : graph, i) (g' : graph', j) = do
-        check g g'
-        let Node{succ=si, pred=pi}=g!!i
-            Node{succ=sj, pred=pj}= g!!j
-        return ()
+mkEdge :: Node -> Node -> State Graph ()
+mkEdge = diddleEdge (:)
 
-mkEdge :: (Node, Node)
-mkEdge = undefined
+rmEdge :: Node -> Node -> State Graph ()
+rmEdge = diddleEdge delete
 
-rmEdge :: (Node, Node)
-rmEdge = error ""
--}
 -- Table
 newtype Table a = Table [(Node, a)]
 
-enter :: Table a -> Node -> a -> Table a
-enter (Table list) n v = Table ((n, v) : list)
+enter :: Node -> a -> State (Table a) ()
+enter n v = state $ \(Table list) -> ((), Table ((n, v) : list))
