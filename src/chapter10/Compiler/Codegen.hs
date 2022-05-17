@@ -102,7 +102,17 @@ munchStm (T.EXP (T.CALL e args)) = do
                         }
                 )
 munchStm (T.EXP e) = void $ munchExp e
-munchStm T.JUMP{} = error "impossible: bad IR tree"
+munchStm (T.JUMP e labs) = do
+        e' <- munchExp e
+        emit
+                ( A.OPER
+                        { A.assem = "JUMP `s0\n"
+                        , A.src = [e']
+                        , A.dst = []
+                        , A.jump = Just labs
+                        }
+                )
+--error "impossible: bad IR tree"
 munchStm T.CJUMP{} = error "impossible: bad IR tree"
 munchStm (T.SEQ a b) = munchStm a >> munchStm b
 munchStm (T.LABEL lab) = emit A.LABEL{A.assem = show lab ++ ":\n", A.lab = lab}

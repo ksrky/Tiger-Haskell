@@ -55,6 +55,11 @@ pred' i = do
 adj :: Node -> State Graph [Node]
 adj gi = (++) <$> pred' gi <*> succ' gi
 
+next :: Node -> State Graph [Node]
+next i = do
+        g <- get
+        return $ [i + 1 | i /= (V.length g - 1)]
+
 update :: Node -> Noderep -> State Graph ()
 update i e = modify $ flip (V.//) [(i, e)]
 
