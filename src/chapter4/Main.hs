@@ -23,6 +23,7 @@ repl = runInputT defaultSettings loop
                 minput <- getInputLine ">> "
                 case minput of
                         Nothing -> outputStrLn "Goodbye."
+                        Just "" -> outputStrLn "Goodbye."
                         Just input -> do
                                 liftIO $ process input
                                 loop

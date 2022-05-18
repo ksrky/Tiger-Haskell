@@ -27,6 +27,7 @@ repl = runInputT defaultSettings (loop (SS baseVEnv baseTEnv Outermost initState
                 minput <- getInputLine ">> "
                 case minput of
                         Nothing -> outputStrLn "Goodbye."
+                        Just "" -> outputStrLn "Goodbye."
                         Just input -> do
                                 liftIO $ process st input
                                 loop st
