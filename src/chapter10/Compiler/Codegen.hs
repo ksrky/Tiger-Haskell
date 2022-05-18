@@ -25,6 +25,7 @@ emit :: A.Instr -> State CodegenState ()
 emit inst = state $ \cgn -> ((), cgn{ilist = inst : ilist cgn})
 
 munchStm :: T.Stm -> State CodegenState ()
+munchStm (T.SEQ a b) = munchStm a >> munchStm b
 munchStm (T.MOVE (T.MEM (T.BINOP T.PLUS e1 (T.CONST i))) e2) = do
         e1' <- munchExp e1
         e2' <- munchExp e2
@@ -114,7 +115,6 @@ munchStm (T.JUMP e labs) = do
                 )
 --error "impossible: bad IR tree"
 munchStm T.CJUMP{} = error "impossible: bad IR tree"
-munchStm (T.SEQ a b) = munchStm a >> munchStm b
 munchStm (T.LABEL lab) = emit A.LABEL{A.assem = show lab ++ ":\n", A.lab = lab}
 
 result :: (Temp.Temp -> State CodegenState ()) -> State CodegenState Temp.Temp

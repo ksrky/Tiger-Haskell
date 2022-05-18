@@ -14,16 +14,13 @@ data IGraph = IGraph
         , moves :: [(G.Node, G.Node)]
         }
 
-type LiveSet = [Temp.Temp]
-type LiveMap = G.Table LiveSet
-
 data Liveness = Liveness {liveIn :: G.Table (S.Set Temp.Temp), liveOut :: G.Table (S.Set Temp.Temp)}
 
 emptyLiveness :: Liveness
 emptyLiveness = Liveness{liveIn = G.newTable, liveOut = G.newTable}
 
 interferenceGraph :: F.FlowGraph -> (IGraph, G.Node -> [Temp.Temp])
-interferenceGraph (F.FGraph g def use ismove) = undefined
+interferenceGraph (F.FGraph g def use ismove) = (IGraph g undefined undefined getMoves, S.toList . (out G.!?))
     where
         nodes = G.nodes g
         repeat :: State Liveness ()
@@ -38,3 +35,6 @@ interferenceGraph (F.FGraph g def use ismove) = undefined
                 in'' <- gets liveIn
                 out' <- gets liveOut
                 unless ((in' == in'') && (out == out')) repeat
+        Liveness _ out = repeat `execState` emptyLiveness
+        getMoves :: [(G.Node, G.Node)]
+        getMoves = undefined
