@@ -9,6 +9,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
 import qualified Data.Maybe
+import qualified Data.Set as S
 
 instrs2graph :: [A.Instr] -> State F.FlowGraph [G.Node]
 instrs2graph instrs = do
@@ -19,10 +20,9 @@ createNode :: A.Instr -> WriterT [(Temp.Label, G.Node)] (State F.FlowGraph) G.No
 createNode (A.OPER assem dst src jump) = do
         fg <- get
         let (i, g) = G.newNode `runState` F.control fg
-            def = G.enter i dst `execState` F.def fg
-            use = G.enter i src `execState` F.use fg
-            ismove = G.enter i False `execState` F.ismove fg
-        -- convGraph $ Data.Maybe.fromMaybe [] jump
+            def = G.enter (F.def fg) i (S.fromList dst)
+            use = G.enter (F.use fg) i (S.fromList src)
+            ismove = G.enter (F.ismove fg) i False
         put fg{F.control = g, F.def = def, F.use = use, F.ismove = ismove}
         return i
 createNode (A.LABEL assem lab) = do
@@ -34,9 +34,9 @@ createNode (A.LABEL assem lab) = do
 createNode (A.MOVE assem dst src) = do
         fg <- get
         let (i, g) = G.newNode `runState` F.control fg
-            def = G.enter i [dst] `execState` F.def fg
-            use = G.enter i [src] `execState` F.use fg
-            ismove = G.enter i True `execState` F.ismove fg
+            def = G.enter (F.def fg) i (S.singleton dst)
+            use = G.enter (F.use fg) i (S.singleton src)
+            ismove = G.enter (F.ismove fg) i True
         put fg{F.control = g, F.def = def, F.use = use, F.ismove = ismove}
         return i
 

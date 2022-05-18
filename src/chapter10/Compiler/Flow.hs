@@ -3,10 +3,12 @@ module Compiler.Flow where
 import qualified Common.Temp as Temp
 import qualified Compiler.Graph as G
 
+import qualified Data.Set as S
+
 data FlowGraph = FGraph
         { control :: G.Graph
-        , def :: G.Table [Temp.Temp]
-        , use :: G.Table [Temp.Temp]
+        , def :: G.Table (S.Set Temp.Temp)
+        , use :: G.Table (S.Set Temp.Temp)
         , ismove :: G.Table Bool
         }
 
