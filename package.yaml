@@ -107,6 +107,13 @@ executables:
       - -threaded
       - -rtsopts
       - -with-rtsopts=-N
+  chapter11:
+    main: Main.hs
+    source-dirs: src/chapter11
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
 #  llvm:
 #    main: Main.hs
 #    source-dirs: src/llvm
