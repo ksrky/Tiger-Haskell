@@ -3,6 +3,7 @@ module Common.Temp where
 import qualified Common.Symbol as S
 
 import Control.Monad.State (MonadState (state), State)
+import qualified Data.Map.Strict as M
 
 type Temp = Int
 type Label = S.Symbol
@@ -23,3 +24,5 @@ newLabel = state (\(TS t l) -> (S.symbol $ "L" ++ show l, TS t (l + 1)))
 
 namedLabel :: String -> Label
 namedLabel = S.symbol
+
+type Table a = M.Map Temp a

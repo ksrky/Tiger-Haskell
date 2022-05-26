@@ -1,314 +1,371 @@
 module Semant.Semant where
 
 import qualified Common.Symbol as S
+import qualified Common.Temp as Temp
 import qualified Semant.Env as E
 import qualified Semant.Error as Err
+import qualified Semant.Translate as TL
 import qualified Semant.Types as T
 import qualified Syntax.Absyn as A
 import qualified Syntax.Absyn.Utils as A
 
 import Control.Monad.State
-import Data.Maybe (isJust)
+import Data.List (elemIndex)
 
 type VEnv = S.Table E.EnvEntry
-type TEnv = S.Table T.Ty
+type TEnv = S.Table (TL.Level, T.Ty)
 
-data ExpTy = ExpTy {exptyExp :: (), exptyTy :: T.Ty}
+data ExpTy = ExpTy {exptyExp :: TL.Exp, exptyTy :: T.Ty} deriving (Show)
 
-instance Show ExpTy where
-        show (ExpTy _ ty) = show ty
+------------------------------------------------------------------
+-- SemantState
+------------------------------------------------------------------
+data SemantState = SS {venv :: VEnv, tenv :: TEnv, level :: TL.Level, tstate :: Temp.TempState}
 
-data SemantState = SS {venv :: VEnv, tenv :: TEnv}
+convTempState :: State Temp.TempState a -> StateT SemantState (Either Err.Error) a
+convTempState s = do
+        st <- get
+        tst <- gets tstate
+        let (res, tst') = runState s tst
+        put st{tstate = tst'}
+        return res
+
+convVEnv :: Monad m => StateT VEnv m a -> StateT SemantState m a
+convVEnv s = do
+        st <- get
+        venv <- gets venv
+        (val, venv') <- lift $ runStateT s venv
+        put st{venv = venv'}
+        return val
+
+convTEnv :: Monad m => StateT TEnv m a -> StateT SemantState m a
+convTEnv s = do
+        st <- get
+        tenv <- gets tenv
+        (val, tenv') <- lift $ runStateT s tenv
+        put st{tenv = tenv'}
+        return val
 
 initState :: SemantState
-initState = SS E.baseVEnv E.baseTEnv
+initState = SS E.baseVEnv E.baseTEnv TL.topLevel Temp.emptyState
 
+------------------------------------------------------------------
+-- Utils
+------------------------------------------------------------------
 match :: T.Ty -> T.Ty -> TEnv -> A.Pos -> Either Err.Error ()
 match lty rty tenv pos = do
         lty' <- actualTy lty
         rty' <- actualTy rty
-        if lty' == rty' || T.NIL == lty' || T.NIL == rty'
+        if lty' == rty' || lty' == T.NIL || T.NIL == rty'
                 then return ()
-                else Err.returnErr_ (Err.TypeMismatch (show lty) (show rty)) pos
+                else Err.typeMismatch (show lty) (show rty) pos
     where
         actualTy :: T.Ty -> Either Err.Error T.Ty
         actualTy ty = case ty of
-                T.NAME name -> case S.look tenv name of
-                        Just ty' -> actualTy ty'
-                        Nothing -> Err.returnErr "" (Err.TypeNotFound name) pos
+                T.NAME name -> do
+                        ty' <- lookty tenv name pos
+                        actualTy ty'
                 T.ARRAY sym ty' -> T.ARRAY sym <$> actualTy ty'
                 T.RECORD sym fields -> T.RECORD sym . zip (map fst fields) <$> mapM (actualTy . snd) fields
                 _ -> return ty
 
-transVar :: SemantState -> A.Var -> Either Err.Error ExpTy
+lookty :: TEnv -> S.Symbol -> A.Pos -> Either Err.Error T.Ty
+lookty tenv typ pos = case S.look tenv typ of
+        Nothing -> Err.unknownType typ pos
+        Just (_, ty) -> return ty
+
+mkT :: State Temp.TempState a -> StateT Temp.TempState (Either Err.Error) a
+mkT s = StateT $ \a -> return (runState s a)
+
+------------------------------------------------------------------
+-- Translate variables
+------------------------------------------------------------------
+transVar :: SemantState -> A.Var -> StateT Temp.TempState (Either Err.Error) ExpTy
 transVar st@(SS venv tenv lev tst) = trvar
     where
-        trvar :: A.Var -> Either Err.Error ExpTy
+        trvar :: A.Var -> StateT Temp.TempState (Either Err.Error) ExpTy
         trvar (A.SimpleVar sym pos) = case S.look venv sym of
-                Nothing -> Err.returnErr_ (Err.UnknownIdentifier sym) pos
+                Nothing -> lift $ Err.unknownVariable sym pos
                 Just (E.VarEntry acs ty) -> return $ ExpTy (TL.simpleVar (acs, lev)) ty
-                Just E.FunEntry{} -> Err.returnErr_ (Err.UnknownIdentifier sym) pos
+                Just E.FunEntry{} -> lift $ Err.unknownVariable sym pos
         trvar (A.FieldVar var sym pos) = do
                 ExpTy var' ty <- trvar var
                 case ty of
                         T.RECORD _ fs -> case lookup sym fs of
-                                Nothing -> Err.returnErr_ (Err.RecordFieldNotFound sym) pos
+                                Nothing -> lift $ Err.otherError ("field not found" ++ show sym) pos
                                 Just ty' -> do
-                                        let expr = TL.fieldVar var' var' `evalState` tst
+                                        let Just idx = elemIndex sym (map fst fs)
+                                        expr <- mkT $ TL.lvalueVar var' (TL.intExp idx)
                                         return $ ExpTy expr ty'
-                        _ -> Err.returnErr_ (Err.WrongType "record type" (show ty)) pos
+                        _ -> lift $ Err.wrongType "record type" (show ty) pos
         trvar (A.SubscriptVar var exp pos) = do
                 ExpTy var' ty <- trvar var
                 case ty of
                         T.ARRAY _ ty' -> do
-                                ExpTy idx ty'' <- transExp st exp
-                                match T.INT ty'' tenv pos
-                                let expr = TL.subscriptVar var' idx `evalState` tst
+                                ExpTy idx ty'' <- lift $ transExp st exp
+                                lift $ (T.INT `match` ty'') tenv pos
+                                expr <- mkT $ TL.lvalueVar var' idx
                                 return $ ExpTy expr ty'
-                        _ -> Err.returnErr_ (Err.WrongType "array type" (show var)) pos
+                        _ -> lift $ Err.wrongType "array type" (show var) pos
 
+------------------------------------------------------------------
+-- Translate expressions
+------------------------------------------------------------------
 transExp :: SemantState -> A.Exp -> Either Err.Error ExpTy
-transExp st@(SS venv tenv _ tst) = trexp
+transExp st@(SS venv tenv lev tst) exp = evalStateT (trexp exp) tst
     where
-        trexp :: A.Exp -> Either Err.Error ExpTy --tmp: StateT, evalState? tempstate
+        trexp :: A.Exp -> StateT Temp.TempState (Either Err.Error) ExpTy
         trexp (A.VarExp v) = transVar st v
         trexp A.NilExp = return $ ExpTy TL.nilExp T.NIL
         trexp (A.IntExp i) = return $ ExpTy (TL.intExp i) T.INT
         trexp (A.StringExp (s, p)) = do
-                let (expr, _) = TL.stringExp s `evalState` tst --tmp
+                (expr, _) <- mkT $ TL.stringExp s
                 return $ ExpTy expr T.STRING
         trexp (A.CallExp fun args pos) = case S.look venv fun of
-                Nothing -> Err.returnErr_ (Err.UnknownIdentifier fun) pos
-                Just (E.VarEntry _ _) -> Err.returnErr_ (Err.UnknownIdentifier fun) pos
-                Just (E.FunEntry _ lab fmls res) -> do
-                        checkformals args fmls
+                Nothing -> lift $ Err.unknownFunction fun pos
+                Just (E.VarEntry _ _) -> lift $ Err.unknownFunction fun pos
+                Just (E.FunEntry fun_lev lab fmls res) -> do
+                        lift $ when (length args /= length fmls) $ Err.wrongNumberArgs (length args) (length fmls) pos
+                        zipWithM_ checkformal args fmls
                         args' <- mapM trexp args
-                        let expr = TL.callExp lab (map exptyExp args') `evalState` tst
+                        expr <- mkT $ TL.callExp (TL.parent fun_lev, lev) lab (map exptyExp args')
                         return $ ExpTy expr res
                     where
-                        checkformals :: [A.Exp] -> [T.Ty] -> Either Err.Error ()
-                        checkformals [] [] = return ()
-                        checkformals (e : es) (t : ts) = do
-                                ty <- getTy e
-                                match t ty tenv pos
-                                checkformals es ts
-                                return ()
-                        checkformals _ _ = Err.returnErr "wrong number of arguments" Err.SizeMismatch pos
+                        checkformal :: A.Exp -> T.Ty -> StateT Temp.TempState (Either Err.Error) ()
+                        checkformal e t = do
+                                ty <- exptyTy <$> trexp e
+                                lift $ (t `match` ty) tenv pos
         trexp (A.OpExp left op right pos) = do
-                lty <- getTy left
-                rty <- getTy right
+                ExpTy left' lty <- trexp left -- tmp: string comparison
+                ExpTy right' rty <- trexp right
                 kind <- case (lty, rty) of
                         (T.INT, T.INT) -> return 0
                         (T.STRING, T.STRING) -> return 1
                         (t, t') -> case A.opkind op of
                                 A.Equal | t == t' -> return 2
-                                _ -> Err.returnErr_ (Err.InvalidComparison (show lty) (show rty) (show op)) pos
-                left' <- exptyExp <$> trexp left
-                right' <- exptyExp <$> trexp right
+                                _ -> lift $ Err.invalidComparison (show lty) (show rty) (show op) pos
                 expr <- case op of
-                        A.PlusOp | kind < 1 -> return $ (left' `TL.plusOp` right') `evalState` tst
-                        A.MinusOp | kind < 1 -> return $ (left' `TL.minusOp` right') `evalState` tst
-                        A.TimesOp | kind < 1 -> return $ (left' `TL.timesOp` right') `evalState` tst
-                        A.DivideOp | kind < 1 -> return $ (left' `TL.divideOp` right') `evalState` tst
-                        A.LtOp | kind < 2 -> return $ (left' `TL.ltOp` right') `evalState` tst
-                        A.LeOp | kind < 2 -> return $ (left' `TL.leOp` right') `evalState` tst
-                        A.GtOp | kind < 2 -> return $ (left' `TL.gtOp` right') `evalState` tst
-                        A.GeOp | kind < 2 -> return $ (left' `TL.geOp` right') `evalState` tst
-                        A.EqOp | kind < 3 -> return $ (left' `TL.eqOp` right') `evalState` tst
-                        A.NeqOp | kind < 3 -> return $ (left' `TL.neqOp` right') `evalState` tst
-                        _ -> Err.returnErr_ (Err.InvalidComparison (show lty) (show rty) (show op)) pos
+                        A.PlusOp | kind < 1 -> mkT $ left' `TL.plusOp` right'
+                        A.MinusOp | kind < 1 -> mkT $ left' `TL.minusOp` right'
+                        A.TimesOp | kind < 1 -> mkT $ left' `TL.timesOp` right'
+                        A.DivideOp | kind < 1 -> mkT $ left' `TL.divideOp` right'
+                        A.LtOp | kind < 2 -> mkT $ left' `TL.ltOp` right'
+                        A.LeOp | kind < 2 -> mkT $ left' `TL.leOp` right'
+                        A.GtOp | kind < 2 -> mkT $ left' `TL.gtOp` right'
+                        A.GeOp | kind < 2 -> mkT $ left' `TL.geOp` right'
+                        A.EqOp | kind < 3 -> mkT $ left' `TL.eqOp` right'
+                        A.NeqOp | kind < 3 -> mkT $ left' `TL.neqOp` right'
+                        _ -> lift $ Err.invalidComparison (show lty) (show rty) (show op) pos
                 return $ ExpTy expr T.INT
-        trexp (A.RecordExp fields typ pos) = case S.look tenv typ of
-                Nothing -> Err.returnErr_ (Err.TypeNotFound typ) pos
-                Just ty' -> do
-                        fs_ty <- case ty' of
-                                T.NAME name -> case S.look tenv name of
-                                        Just ty'' -> isRecord ty''
-                                        Nothing -> Err.returnErr_ (Err.TypeNotFound name) pos
-                                T.RECORD _ fields -> return fields
-                                _ -> Err.returnErr_ (Err.WrongType "record type" (show ty')) pos
-                        checkrecord (map (\(x, y, z) -> (x, (y, z))) fields) fs_ty
-                        exps <- map exptyExp <$> mapM (trexp . (\(x, y, z) -> y)) fields
-                        let expr = TL.recordExp exps `evalState` tst
-                        return $ ExpTy expr ty'
-                    where
-                        isRecord :: T.Ty -> Either Err.Error [(S.Symbol, T.Ty)]
-                        isRecord ty' = case ty' of
-                                T.NAME name -> case S.look tenv name of
-                                        Just ty'' -> isRecord ty''
-                                        Nothing -> Err.returnErr_ (Err.TypeNotFound name) pos
-                                T.RECORD _ fields -> return fields
-                                _ -> Err.returnErr_ (Err.WrongType "record type" (show ty')) pos
-                        checkrecord :: [(A.Symbol, (A.Exp, A.Pos))] -> [(S.Symbol, T.Ty)] -> Either Err.Error ()
-                        checkrecord _ [] = return ()
-                        checkrecord fs ((s, t) : sts) = case lookup s fs of
-                                Just (e, p) -> do
-                                        ty <- getTy e
-                                        match t ty tenv pos
-                                        checkrecord fs sts
-                                Nothing -> Err.returnErr_ (Err.RecordFieldNotFound s) pos
+        trexp (A.RecordExp fields typ pos) = do
+                ty <- lift $lookty tenv typ pos
+                fs_ty <- case ty of
+                        T.NAME name -> do
+                                ty' <- lift $ lookty tenv name pos
+                                lift $isRecord ty'
+                        T.RECORD _ fields -> return fields
+                        _ -> lift $ Err.wrongType "record type" (show ty) pos
+                checkrecord (map (\(x, y, z) -> (x, (y, z))) fields) fs_ty
+                exps <- map exptyExp <$> mapM (trexp . (\(x, y, z) -> y)) fields
+                expr <- mkT $ TL.recordExp exps
+                return $ ExpTy expr ty
+            where
+                isRecord :: T.Ty -> Either Err.Error [(S.Symbol, T.Ty)]
+                isRecord ty = case ty of
+                        T.NAME name -> do
+                                ty' <- lookty tenv name pos
+                                isRecord ty'
+                        T.RECORD _ fields -> return fields
+                        _ -> Err.wrongType "record type" (show ty) pos
+                checkrecord :: [(S.Symbol, (A.Exp, A.Pos))] -> [(S.Symbol, T.Ty)] -> StateT Temp.TempState (Either Err.Error) ()
+                checkrecord _ [] = return ()
+                checkrecord fs ((s, t) : sts) = case lookup s fs of
+                        Just (e, p) -> do
+                                ty <- exptyTy <$> trexp e
+                                lift $ (t `match` ty) tenv pos
+                                checkrecord fs sts
+                        Nothing -> lift $ Err.otherError ("record field not found" ++ show s) pos
         trexp (A.SeqExp seqexp pos) = do
                 exps <- map exptyExp <$> mapM trexp seqexp
-                let expr = TL.seqExp exps `evalState` tst
+                expr <- mkT $ TL.seqExp exps
                 ty <- if null seqexp then return T.UNIT else exptyTy <$> trexp (last seqexp)
                 return $ ExpTy expr ty
         trexp (A.AssignExp v e pos) = do
                 ExpTy left lty <- transVar st v
                 ExpTy right rty <- trexp e
-                match lty rty tenv pos
-                let expr = assignExp left right `evalState` tst
+                lift $ (lty `match` rty) tenv pos
+                expr <- mkT $ TL.assignExp left right
                 return $ ExpTy expr T.UNIT
         trexp (A.IfExp test then' melse pos) = do
                 ExpTy test' test_ty <- trexp test
-                match T.INT test_ty tenv pos
+                lift $ match T.INT test_ty tenv pos
                 ExpTy then'' then_ty <- trexp then'
                 case melse of
                         Nothing -> do
-                                match T.UNIT then_ty tenv pos
-                                let expr = TL.ifExp test' then'' TL.nilExp `evalState` tst
+                                lift $ (T.UNIT `match` then_ty) tenv pos
+                                expr <- mkT $ TL.ifExp test' then'' TL.nilExp
                                 return $ ExpTy expr T.UNIT
                         Just else' -> do
                                 ExpTy else'' else_ty <- trexp else'
-                                match then_ty else_ty tenv pos
-                                let expr = TL.ifExp test' then'' else'' `evalState` tst
+                                lift $ (then_ty `match` else_ty) tenv pos
+                                expr <- mkT $ TL.ifExp test' then'' else''
                                 return $ ExpTy expr then_ty
         trexp (A.WhileExp test body pos) = do
                 ExpTy test' test_ty <- trexp test
-                match T.INT test_ty tenv pos
+                lift $ (T.INT `match` test_ty) tenv pos
                 ExpTy body' body_ty <- trexp body
-                match T.UNIT body_ty tenv pos
-                let expr = TL.whileExp test' body' `evalState` tst
+                lift $ (T.UNIT `match` body_ty) tenv pos
+                expr <- mkT $ TL.whileExp test' body'
                 return $ ExpTy expr T.UNIT
         trexp (A.ForExp name esc lo hi body pos) = do
                 lo_ty <- exptyTy <$> trexp lo
-                match T.INT lo_ty tenv pos
+                lift $ (T.INT `match` lo_ty) tenv pos
                 hi_ty <- exptyTy <$> trexp hi
-                match T.INT hi_ty tenv pos
+                lift $ (T.INT `match` hi_ty) tenv pos
                 let e = A.forToLet (name, esc, lo, hi, body, pos)
                 trexp e
         trexp (A.BreakExp _) = error "break is not implemented yet"
         trexp (A.LetExp decs body pos) = do
-                st' <- transDecs decs st
-                transExp st' body
-        trexp (A.ArrayExp typ size init pos) = case S.look tenv typ of
-                Nothing -> Err.returnErr_ (Err.TypeNotFound typ) pos
-                Just ty -> do
-                        ty' <- isArray ty
-                        ExpTy size' size_ty <- trexp size
-                        match T.INT size_ty tenv pos
-                        ExpTy init' init_ty <- trexp init
-                        match ty' init_ty tenv pos
-                        let expr = TL.arrayExp size' init' `evalState` tst
-                        return $ ExpTy expr ty
+                (decs', st') <- lift $transDecs decs `runStateT` st
+                ExpTy body' ty <- lift $transExp st' body
+                expr <- mkT $ TL.letExp decs' body'
+                return $ ExpTy expr ty
+        trexp (A.ArrayExp typ size init pos) = do
+                ty <- lift $lookty tenv typ pos
+                ty' <- lift $isArray ty
+                ExpTy size' size_ty <- trexp size
+                lift $ (T.INT `match` size_ty) tenv pos
+                ExpTy init' init_ty <- trexp init
+                lift $ (ty' `match` init_ty) tenv pos
+                expr <- mkT $ TL.arrayExp size' init'
+                return $ ExpTy expr ty
             where
                 isArray :: T.Ty -> Either Err.Error T.Ty
                 isArray ty = case ty of
-                        T.NAME name -> case S.look tenv name of
-                                Just ty' -> isArray ty'
-                                Nothing -> Err.returnErr_ (Err.TypeNotFound name) pos
+                        T.NAME name -> do
+                                ty' <- lookty tenv name pos
+                                isArray ty'
                         T.ARRAY _ ty' -> return ty'
-                        _ -> Err.returnErr_ (Err.WrongType "array type" (show ty)) pos
+                        _ -> Err.wrongType "array type" (show ty) pos
 
-        getTy :: A.Exp -> Either Err.Error T.Ty
-        getTy exp = exptyTy <$> trexp exp
-
-type TypeDec = (A.Symbol, A.Pos)
+------------------------------------------------------------------
+-- Translate declarations
+------------------------------------------------------------------
+type TypeDec = (S.Symbol, A.Pos)
 type FunDec = (S.Symbol, [(S.Symbol, T.Ty, Bool)], T.Ty, A.Exp, A.Pos)
 
-transDecs :: [A.Dec] -> SemantState -> Either Err.Error SemantState
-transDecs decs = execStateT $ do
+transDecs :: [A.Dec] -> StateT SemantState (Either Err.Error) [TL.Exp]
+transDecs decs = do
         typedecs <- concat <$> mapM regisTypeDec decs
         fundecs <- concat <$> mapM regisFunDec decs
         mapM_ transTypeDec typedecs
         mapM_ transFunDec fundecs
         mapM_ transVarDec decs
+        concat <$> mapM transVarDec decs
     where
         regisTypeDec :: A.Dec -> StateT SemantState (Either Err.Error) [TypeDec]
-        regisTypeDec (A.TypeDec name ty pos) = StateT $ \st@(SS venv tenv _ _) -> do
-                when (isJust $ S.look tenv name) (Err.returnErr_ (Err.MultipleDeclarations name) pos) --todo: local hides global
-                let tenv' = S.enter tenv name (T.Temp ty)
-                return ([(name, pos)], st{tenv = tenv'})
+        regisTypeDec (A.TypeDec name ty pos) = do
+                tenv <- gets tenv
+                lev <- gets level
+                lift $ case S.look tenv name of
+                        Just (lev_dec, ty) | TL.name lev == TL.name lev_dec -> Err.multipleDeclarations name pos
+                        _ -> return ()
+                convTEnv $ S.enter name (lev, T.Temp ty)
+                return [(name, pos)]
         regisTypeDec _ = return []
         regisFunDec :: A.Dec -> StateT SemantState (Either Err.Error) [FunDec]
-        regisFunDec (A.FunDec name params result body pos) = StateT $ \st@(SS venv tenv lev tst) -> do
-                when (isJust $ S.look venv name) (Err.returnErr_ (Err.MultipleDeclarations name) pos) --todo: local hides global
-                params' <- forM params $ \(A.Field name esc typ pos) -> case S.look tenv typ of
-                        Just ty -> return (name, ty, esc)
-                        Nothing -> Err.returnErr_ (Err.TypeNotFound typ) pos
-                result_ty <- case result of
-                        Just (typ, pos) -> case S.look tenv typ of
-                                Nothing -> Err.returnErr_ (Err.TypeNotFound typ) pos
-                                Just result_ty -> return result_ty
+        regisFunDec (A.FunDec name params result body pos) = do
+                venv <- gets venv
+                lev <- gets level
+                lift $ case S.look venv name of
+                        Just E.FunEntry{E.level = lev_dec} | TL.name lev_dec == TL.name lev -> Err.multipleDeclarations name pos
+                        _ -> return ()
+                tenv <- gets tenv
+                params' <- lift $
+                        forM params $ \(A.Field name esc typ pos) -> do
+                                ty <- lookty tenv typ pos
+                                return (name, ty, esc)
+                result_ty <- lift $ case result of
+                        Just (typ, pos) -> lookty tenv typ pos
                         Nothing -> return T.UNIT
-                let (lev', tst') = runState (TL.newLevel lev (map A.fieldEscape params)) tst
-                    fun = E.FunEntry lev' (TL.name lev') (map (\(_, x, _) -> x) params') result_ty
-                    venv' = S.enter venv name fun
-                return ([(name, params', result_ty, body, pos)], st{venv = venv'})
+                lev' <- convTempState (TL.newLevel lev (map A.fieldEscape params))
+                let fun = E.FunEntry lev' name (map (\(_, x, _) -> x) params') result_ty
+                convVEnv $ S.enter name fun
+                return [(name, params', result_ty, body, pos)]
         regisFunDec _ = return []
         transTypeDec :: TypeDec -> StateT SemantState (Either Err.Error) ()
-        transTypeDec (name, pos) = StateT $ \st -> do
-                st' <- execStateT (transTy (name, pos)) st
-                return ((), st')
+        transTypeDec (name, pos) = void $ transTy (name, pos)
         transFunDec :: FunDec -> StateT SemantState (Either Err.Error) ()
-        transFunDec (name, params', result_ty, body, pos) = StateT $ \st@(SS venv tenv lev tst) -> do
+        transFunDec (name, params', result_ty, body, pos) = do
+                st@(SS venv tenv _ _) <- get
                 let enterparam :: (S.Symbol, T.Ty, Bool) -> State SemantState ()
                     enterparam (name, ty, esc) = do
-                        st@SS{venv = venv} <- get
+                        st@(SS venv _ lev tst) <- get
                         let (acs, tst') = runState (TL.allocLocal lev esc) tst
-                            venv' = S.enter venv name (E.VarEntry acs ty)
-                        put st{venv = venv'}
+                        convVEnv $ S.enter name (E.VarEntry acs ty)
                         return ()
-                    fun = case S.look venv name of
-                        Just fun -> fun
-                        _ -> undefined
-                    st' = execState (mapM enterparam params') st{level = E.level fun}
-                ty <- exptyTy <$> transExp st' body
-                match result_ty ty tenv pos
-                return ((), st)
-        transVarDec :: A.Dec -> StateT SemantState (Either Err.Error) ()
-        transVarDec (A.VarDec name esc mtyp init pos) = StateT $ \st@(SS venv tenv lev tst) -> case mtyp of
-                Just (typ, p) -> case S.look tenv typ of
-                        Nothing -> Err.returnErr_ (Err.TypeNotFound typ) pos
-                        Just t -> do
-                                ty <- exptyTy <$> transExp st init
-                                match t ty tenv pos
-                                let (acs, tst') = runState (TL.allocLocal lev esc) tst
-                                    venv' = S.enter venv name (E.VarEntry acs ty)
-                                return ((), st{venv = venv', tstate = tst'})
-                Nothing -> do
-                        ty <- exptyTy <$> transExp st init
-                        let (acs, tst') = runState (TL.allocLocal lev esc) tst
-                            venv' = S.enter venv name (E.VarEntry acs ty)
-                        return ((), st{venv = venv', tstate = tst'})
-        transVarDec _ = return ()
+                    Just fun = S.look venv name
+                    st' = mapM enterparam params' `execState` st{level = E.level fun}
+                ty <- lift $ exptyTy <$> transExp st' body
+                lift $ (result_ty `match` ty) tenv pos
+                return ()
+        transVarDec :: A.Dec -> StateT SemantState (Either Err.Error) [TL.Exp]
+        transVarDec (A.VarDec name esc mtyp init pos) = do
+                st <- get
+                tenv <- gets tenv
+                (expr, ty) <- lift $ case mtyp of
+                        Just (typ, p) -> do
+                                ty <- lookty tenv typ pos
+                                ExpTy expr ty' <- transExp st init
+                                (ty `match` ty') tenv pos
+                                return (expr, ty)
+                        Nothing -> do
+                                ExpTy expr ty <- transExp st init
+                                return (expr, ty)
+                lev <- gets level
+                acs <- convTempState $ TL.allocLocal lev esc
+                convVEnv $ S.enter name (E.VarEntry acs ty)
+                let var = TL.simpleVar (acs, lev)
+                decl <- convTempState $ TL.assignExp var expr
+                return [decl]
+        transVarDec _ = return []
 
-transTy :: (A.Symbol, A.Pos) -> StateT SemantState (Either Err.Error) T.Ty
-transTy (name, pos) = StateT $ \st@(SS _ tenv _ _) -> do
-        (ty, tenv') <- transTy' [] (name, pos) tenv
-        return (ty, st{tenv = S.enter tenv' name ty})
+------------------------------------------------------------------
+-- Translate types
+------------------------------------------------------------------
+transTy :: (S.Symbol, A.Pos) -> StateT SemantState (Either Err.Error) T.Ty
+transTy (name, pos) = do
+        tenv <- gets tenv
+        ty <- convTEnv $ transTy' [] (name, pos)
+        lev <- gets level
+        convTEnv $ S.enter name (lev, ty)
+        return ty
 
-transTy' :: [A.Symbol] -> (A.Symbol, A.Pos) -> TEnv -> Either Err.Error (T.Ty, TEnv)
-transTy' checked (name, pos) tenv = case S.look tenv name of
-        Just (T.Temp (A.NameTy typ p)) -> do
-                when (name `elem` checked) (Err.returnErr_ (Err.CyclicDefinition name) pos)
-                (ty, tenv') <- transTy' (checked ++ [name]) (typ, pos) tenv
-                return (ty, tenv')
-        Just (T.Temp (A.RecordTy fields))
-                | name `elem` checked -> return (T.Ref name, tenv)
-                | otherwise -> do
-                        fs_ty <- forM fields $ \(A.Field nam _ typ p) -> do
-                                (ty, _) <- transTy' (checked ++ [name]) (typ, p) tenv
-                                return (nam, ty)
-                        return (T.RECORD name fs_ty, S.enter tenv name (T.RECORD name fs_ty))
-        Just (T.Temp (A.ArrayTy typ p))
-                | name `elem` checked -> return (T.Ref name, tenv)
-                | otherwise -> do
-                        (ty, tenv') <- transTy' (checked ++ [name]) (typ, p) tenv
-                        return (T.ARRAY name ty, S.enter tenv' typ ty)
-        Just ty -> return (ty, tenv)
-        _ -> Err.returnErr_ (Err.TypeNotFound name) pos
+transTy' :: [S.Symbol] -> (S.Symbol, A.Pos) -> StateT TEnv (Either Err.Error) T.Ty
+transTy' checked (name, pos) = do
+        tenv <- get
+        case S.look tenv name of
+                Just (_, T.Temp (A.NameTy typ p)) -> do
+                        lift $ when (name `elem` checked) $ Err.cyclicDefinition name pos
+                        transTy' (checked ++ [name]) (typ, pos)
+                Just (lev, T.Temp (A.RecordTy fields))
+                        | name `elem` checked -> return $ T.Ref name
+                        | otherwise -> do
+                                fs_ty <- forM fields $ \(A.Field nam _ typ p) -> do
+                                        ty <- transTy' (checked ++ [name]) (typ, p)
+                                        return (nam, ty)
+                                S.enter name (lev, T.RECORD name fs_ty)
+                                return (T.RECORD name fs_ty)
+                Just (lev, T.Temp (A.ArrayTy typ p))
+                        | name `elem` checked -> return $ T.Ref name
+                        | otherwise -> do
+                                ty <- transTy' (checked ++ [name]) (typ, p)
+                                S.enter typ (lev, ty)
+                                return (T.ARRAY name ty)
+                Just (_, ty) -> return ty
+                _ -> lift $ Err.unknownType name pos
 
-transProg :: A.Exp -> Either Err.Error ()
+transProg :: A.Exp -> Either Err.Error TL.Exp
 transProg exp = do
-        transExp initState exp
-        return ()
+        ExpTy expr _ <- transExp initState exp
+        return expr

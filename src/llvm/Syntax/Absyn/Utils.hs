@@ -1,6 +1,6 @@
 module Syntax.Absyn.Utils where
 
-import Common.Symbol (Symbol)
+import qualified Common.Symbol as S
 import Syntax.Absyn
 
 data OpKind = Arith | Order | Equal
@@ -17,13 +17,21 @@ opkind LeOp = Order
 opkind GtOp = Order
 opkind GeOp = Order
 
-forToLet :: (Symbol, Bool, Exp, Exp, Exp, Pos) -> Exp
-forToLet (name, esc, lo, hi, body, pos) = LetExp decs body' pos
-  where
-    decs =
-        [ VarDec name esc (Just ("int", pos)) lo pos
-        , VarDec "_limits" esc (Just ("int", pos)) hi pos
-        ]
-    var = SimpleVar name pos
-    exp = OpExp (VarExp var) PlusOp (IntExp 1) pos
-    body' = SeqExp (body : [AssignExp var exp pos]) pos
+p :: Pos
+p = Pos (-1) (-1)
+
+forToLet :: (S.Symbol, Bool, Exp, Exp, Exp, Pos) -> Exp
+forToLet (name, esc, lo, hi, body, pos) = LetExp decs body'' pos
+    where
+        decs =
+                [ VarDec name esc (Just (S.symbol "int", pos)) lo p
+                , VarDec (S.symbol "_limits") esc (Just (S.symbol "int", p)) hi p
+                ]
+        i = SimpleVar name p
+        exp = OpExp (VarExp i) PlusOp (IntExp 1) p
+        body' = SeqExp (body : [AssignExp i exp p]) p
+        test = OpExp (VarExp i) LeOp (VarExp (SimpleVar (S.symbol "_limits") p)) p
+        body'' = WhileExp test body' p
+
+mkSimpleVar :: S.Symbol -> Var
+mkSimpleVar sym = SimpleVar sym p

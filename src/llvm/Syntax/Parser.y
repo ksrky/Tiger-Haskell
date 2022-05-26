@@ -4,6 +4,7 @@ module Syntax.Parser where
 import Syntax.Token
 import Syntax.Lexer
 import qualified Syntax.Absyn as A
+import qualified Common.Symbol as S
 }
 
 %name parse
@@ -81,34 +82,34 @@ dec :: { A.Dec }
     | fundec    { $1 }
 
 tydec :: { A.Dec }
-    : 'type' id '=' ty      { A.TypeDec (fst $2) $4 (pos $1) }
+    : 'type' id '=' ty      { A.TypeDec (id2symbol $2) $4 (pos $1) }
 
 ty  :: { A.Ty }
-    : id                    { A.NameTy (fst $1) (pos $ snd $1) }
+    : id                    { A.NameTy (id2symbol $1) (pos $ snd $1) }
     | '{' tyfields '}'      { A.RecordTy $2 }
-    | 'array' 'of' id       { A.ArrayTy (fst $3) (pos $1) }
+    | 'array' 'of' id       { A.ArrayTy (id2symbol $3) (pos $1) }
 
 tyfields :: { [A.Field] }
-    : id ':' id tyfields_       { A.Field (fst $1) True (fst $3) (pos $ snd $1) : $4 }
+    : id ':' id tyfields_       { A.Field (id2symbol $1) True (id2symbol $3) (pos $ snd $1) : $4 }
     | {- empty -}               { [] }
 
 tyfields_ :: { [A.Field] }
-    : ',' id ':' id tyfields_       { A.Field (fst $2) True (fst $4) (pos $1) : $5 }
+    : ',' id ':' id tyfields_       { A.Field (id2symbol $2) True (id2symbol $4) (pos $1) : $5 }
     | {- empty -}                   { [] }
 
 vardec :: { A.Dec }
-    : 'var' id ':=' exp               { A.VarDec (fst $2) True Nothing $4 (pos $1) }
-    | 'var' id ':' id ':=' exp        { A.VarDec (fst $2) True (Just (fst $4, pos $ snd $4)) $6 (pos $1) }
+    : 'var' id ':=' exp               { A.VarDec (id2symbol $2) True Nothing $4 (pos $1) }
+    | 'var' id ':' id ':=' exp        { A.VarDec (id2symbol $2) True (Just (id2symbol $4, pos $ snd $4)) $6 (pos $1) }
 
 fundec :: { A.Dec }
-    : 'function' id  '(' tyfields ')' '=' exp             { A.FunDec (fst $2) $4 Nothing $7 (pos $1) }
-    | 'function' id '(' tyfields ')' ':' id '=' exp       { A.FunDec (fst $2) $4 (Just (fst $7, pos $ snd $7)) $9 (pos $1) }
+    : 'function' id  '(' tyfields ')' '=' exp             { A.FunDec (id2symbol $2) $4 Nothing $7 (pos $1) }
+    | 'function' id '(' tyfields ')' ':' id '=' exp       { A.FunDec (id2symbol $2) $4 (Just (id2symbol $7, pos $ snd $7)) $9 (pos $1) }
 
 lvalue :: { A.Var }
-    : id                            { A.SimpleVar (fst $1) (pos $ snd $1) }
-    | id '.' id                     { A.FieldVar (A.SimpleVar (fst $1) (pos $ snd $1)) (fst $3) (pos $2) }
-    | lvalue '.' id                 { A.FieldVar $1 (fst $3) (pos $2) }
-    | id '[' exp ']'                { A.SubscriptVar (A.SimpleVar (fst $1) (pos $ snd $1)) $3 (pos $2) }
+    : id                            { A.SimpleVar (id2symbol $1) (pos $ snd $1) }
+    | id '.' id                     { A.FieldVar (A.SimpleVar (id2symbol $1) (pos $ snd $1)) (id2symbol $3) (pos $2) }
+    | lvalue '.' id                 { A.FieldVar $1 (id2symbol $3) (pos $2) }
+    | id '[' exp ']'                { A.SubscriptVar (A.SimpleVar (id2symbol $1) (pos $ snd $1)) $3 (pos $2) }
     | lvalue '[' exp ']'            { A.SubscriptVar $1 $3 (pos $2) }
 
 exp :: { A.Exp }
@@ -118,7 +119,7 @@ exp :: { A.Exp }
     | int                                   { A.IntExp (fst $1) }
     | string                                { A.StringExp (fst $1, pos (snd $1)) }
     | '-' exp %prec UMINUS                  { A.OpExp (A.IntExp 0) A.MinusOp $2 (pos $1) }
-    | id '(' args ')'                       { A.CallExp (fst $1) $3 (pos $ snd $1) }
+    | id '(' args ')'                       { A.CallExp (id2symbol $1) $3 (pos $ snd $1) }
     | exp '+' exp                           { A.OpExp $1 A.PlusOp $3 (pos $2) }
     | exp '-' exp                           { A.OpExp $1 A.MinusOp $3 (pos $2) }
     | exp '*' exp                           { A.OpExp $1 A.TimesOp $3 (pos $2) }
@@ -131,13 +132,13 @@ exp :: { A.Exp }
     | exp '>=' exp                          { A.OpExp $1 A.GeOp $3 (pos $2) }
     | exp '&' exp                           { A.IfExp $1 $3 (Just $ A.IntExp 0) (pos $2) }
     | exp '|' exp                           { A.IfExp $1 (A.IntExp 1) (Just $3) (pos $2) }
-    | id '{' rcd '}'                        { A.RecordExp $3 (fst $1) (pos $ snd $1) }
-    | id '[' exp ']' 'of' exp               { A.ArrayExp (fst $1) $3 $6 (pos $ snd $1) }
+    | id '{' rcd '}'                        { A.RecordExp $3 (id2symbol $1) (pos $ snd $1) }
+    | id '[' exp ']' 'of' exp               { A.ArrayExp (id2symbol $1) $3 $6 (pos $ snd $1) }
     | lvalue ':=' exp                       { A.AssignExp $1 $3 (pos $2) }
     | 'if' exp 'then' exp 'else' exp        { A.IfExp $2 $4 (Just $6) (pos $1) }
     | 'if' exp 'then' exp                   { A.IfExp $2 $4 Nothing (pos $1) }
     | 'while' exp 'do' exp                  { A.WhileExp $2 $4 (pos $1) }
-    | 'for' id ':=' exp 'to' exp 'do' exp   { A.ForExp (fst $2) True $4 $6 $8 (pos $1) }
+    | 'for' id ':=' exp 'to' exp 'do' exp   { A.ForExp (id2symbol $2) True $4 $6 $8 (pos $1) }
     | 'break'                               { A.BreakExp (pos $1) }
     | 'let' decs 'in' seqexp 'end'          { A.LetExp $2 (A.SeqExp $4 (pos $3)) (pos $1) }
 
@@ -157,11 +158,11 @@ args_ :: { [A.Exp] }
     : ',' exp args_             { $2 : $3 }
     | {- empty -}               { [] }
 
-rcd :: { [(A.Symbol, A.Exp, A.Pos)] }
+rcd :: { [(S.Symbol, A.Exp, A.Pos)] }
     : id '=' exp rcd_           { concatRcd $1 $3 $4 }
     | {- empty -}               { [] }
 
-rcd_ :: { [(A.Symbol, A.Exp, A.Pos)] }
+rcd_ :: { [(S.Symbol, A.Exp, A.Pos)] }
     : ',' id '=' exp rcd_       { concatRcd $2 $4 $5 }
     | {- empty -}               { [] }
 
@@ -173,7 +174,10 @@ parseError t = alexError $ "Parse error: " ++ show t
 pos :: AlexPosn -> A.Pos
 pos (AlexPn _ l c) = A.Pos l c
 
-concatRcd :: (A.Symbol, AlexPosn) -> A.Exp -> [(A.Symbol, A.Exp, A.Pos)] -> [(A.Symbol, A.Exp, A.Pos)]
-concatRcd i e [] = [(fst i, e, pos $ snd i)]
-concatRcd i e r = (fst i, e, pos $ snd i):r
+id2symbol :: (String, AlexPosn) -> S.Symbol
+id2symbol (s, _) = S.symbol s
+
+concatRcd :: (String, AlexPosn) -> A.Exp -> [(S.Symbol, A.Exp, A.Pos)] -> [(S.Symbol, A.Exp, A.Pos)]
+concatRcd i e [] = [(id2symbol i, e, pos $ snd i)]
+concatRcd i e r = (id2symbol i, e, pos $ snd i):r
 }

@@ -1,23 +1,30 @@
 module Semant.Env where
 
 import qualified Common.Symbol as S
+import qualified Common.Temp as Temp
+import qualified Semant.Translate as TL
 import qualified Semant.Types as T
 
 data EnvEntry
-        = VarEntry {ty :: T.Ty}
-        | FunEntry {formals :: [T.Ty], result :: T.Ty}
+        = VarEntry {access :: TL.Access, ty :: T.Ty}
+        | FunEntry {level :: TL.Level, label :: Temp.Label, formals :: [T.Ty], result :: T.Ty}
 
-type BaseTEnv = S.Table T.Ty
+type BaseTEnv = S.Table (TL.Level, T.Ty)
 type BaseVEnv = S.Table EnvEntry
 
 baseTEnv :: BaseTEnv
-baseTEnv = S.new [("int", T.INT), ("string", T.STRING), ("nil", T.NIL)]
+baseTEnv =
+        S.new
+                [ (S.symbol "int", (TL.Outermost, T.INT))
+                , (S.symbol "string", (TL.Outermost, T.STRING))
+                , (S.symbol "nil", (TL.Outermost, T.NIL))
+                ]
 
 baseVEnv :: BaseVEnv
 baseVEnv = S.new $ map funentry reserved
     where
-        funentry :: (S.Symbol, [T.Ty], T.Ty) -> (String, EnvEntry)
-        funentry (name, fmls, res) = (name, FunEntry fmls res)
+        funentry :: (String, [T.Ty], T.Ty) -> (S.Symbol, EnvEntry)
+        funentry (name, fmls, res) = (S.symbol name, FunEntry TL.Outermost (Temp.namedLabel name) fmls res)
         reserved =
                 [ ("print", [T.STRING], T.UNIT)
                 , ("flush", [], T.UNIT)

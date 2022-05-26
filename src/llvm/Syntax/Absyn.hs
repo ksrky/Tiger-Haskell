@@ -52,6 +52,6 @@ data Oper
         | LeOp
         | GtOp
         | GeOp
-        deriving (Eq, Show)
+        deriving (Eq)
 
 data Field = Field {fieldName :: S.Symbol, fieldEscape :: Bool, fieldTyp :: S.Symbol, fieldPos :: Pos} deriving (Eq, Show)

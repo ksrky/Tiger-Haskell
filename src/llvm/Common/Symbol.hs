@@ -1,16 +1,18 @@
 module Common.Symbol where
 
+import Control.Monad.State (StateT, modify)
 import qualified Data.Map.Strict as M
+import Data.Text (Text, pack, unpack)
 
-type Symbol = String
+type Symbol = Text
 
 type Table a = M.Map Symbol a
 
 symbol :: String -> Symbol
-symbol = id
+symbol = pack
 
 name :: Symbol -> String
-name = id
+name = unpack
 
 new :: [(Symbol, a)] -> Table a
 new = M.fromList
@@ -18,8 +20,8 @@ new = M.fromList
 empty :: Table a
 empty = M.empty
 
-enter :: Table a -> Symbol -> a -> Table a
-enter table s v = M.insert s v table
+enter :: Monad m => Symbol -> a -> StateT (Table a) m ()
+enter s v = modify $ \table -> M.insert s v table
 
 look :: Table a -> Symbol -> Maybe a
 look table s = M.lookup s table
