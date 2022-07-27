@@ -90,6 +90,30 @@ executable chapter10
 executable chapter11
   main-is: Main.hs
   other-modules:
+      Common.Symbol
+      Common.Temp
+      Compiler.Assem
+      Compiler.Codegen
+      Compiler.Flow
+      Compiler.Graph
+      Compiler.Liveness
+      Compiler.MakeGraph
+      Frame.Frame
+      Frame.X64Frame
+      IR.Canon
+      IR.Tree
+      Semant.Env
+      Semant.Error
+      Semant.FindEscape
+      Semant.Semant
+      Semant.Translate
+      Semant.Types
+      Syntax.Absyn
+      Syntax.Absyn.Show
+      Syntax.Absyn.Utils
+      Syntax.Lexer
+      Syntax.Parser
+      Syntax.Token
       Paths_Tiger
   hs-source-dirs:
       src/chapter11
@@ -411,6 +435,8 @@ executable llvm
       Frame.X64Frame
       IR.Canon
       IR.Tree
+      LLVM.Pretty
+      LLVM.Tree
       Semant.Env
       Semant.Error
       Semant.FindEscape
