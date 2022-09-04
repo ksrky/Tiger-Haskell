@@ -1,7 +1,7 @@
 module Semant.Semant where
 
-import qualified Error.Error as Err
 import qualified Semant.Env as E
+import qualified Semant.Error as Err
 import qualified Semant.Symbol as S
 import qualified Semant.Types as T
 import qualified Syntax.Absyn as A
@@ -44,7 +44,7 @@ transVar st@(SS venv tenv) = trvar
         trvar (A.SimpleVar sym pos) = case S.look venv sym of
                 Nothing -> Err.returnErr_ (Err.UnknownIdentifier sym) pos
                 Just (E.VarEntry ty) -> return $ ExpTy () ty
-                Just (E.FunEntry{}) -> Err.returnErr_ (Err.UnknownIdentifier sym) pos
+                Just E.FunEntry{} -> Err.returnErr_ (Err.UnknownIdentifier sym) pos
         trvar (A.FieldVar v sym pos) = do
                 ty <- ty <$> trvar v
                 case ty of

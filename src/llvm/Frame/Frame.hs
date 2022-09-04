@@ -9,11 +9,11 @@ import Control.Monad.State
 data Access = InFrame Int | InReg Temp.Temp deriving (Eq, Show)
 
 class FrameBase f where
-        newFrame :: Temp.Label -> [Bool] -> State Temp.TempState f
+        newFrame :: Monad m => Temp.Label -> [Bool] -> StateT Temp.TempState m f
         name :: f -> Temp.Label
         formals :: f -> [Access]
         locals :: f -> [Access]
-        allocLocal :: f -> Bool -> State Temp.TempState f
+        allocLocal :: Monad m => f -> Bool -> StateT Temp.TempState m f
         fp :: f -> Temp.Temp
         rv :: f -> Temp.Temp
 

@@ -19,7 +19,7 @@ data Level
 
 data Access = Access {level :: Level, access :: Frame.Access} deriving (Eq, Show)
 
-newLevel :: Level -> [Bool] -> State Temp.TempState Level
+newLevel :: Monad m => Level -> [Bool] -> StateT Temp.TempState m Level
 newLevel par fmls = do
         lab <- Temp.newLabel
         frm <- Frame.newFrame lab fmls
@@ -31,7 +31,7 @@ topLevel = Level Outermost lab [True] frm
         lab = Temp.namedLabel "main"
         frm = Frame.newFrame lab [] `evalState` Temp.emptyState
 
-allocLocal :: Level -> Bool -> State Temp.TempState Access
+allocLocal :: Monad m => Level -> Bool -> StateT Temp.TempState m Access
 allocLocal lev@Level{frame = frm} esc = do
         frm' <- Frame.allocLocal frm esc
         return $ Access lev{frame = frm'} (last $ Frame.locals frm')
@@ -53,7 +53,7 @@ instance Show Exp where
         show (Nx s) = show s
         show (Cx _) = error "cannot show Cx"
 
-unEx :: Exp -> State Temp.TempState T.Exp
+unEx :: Monad m => Exp -> StateT Temp.TempState m T.Exp
 unEx (Ex exp) = return exp
 unEx (Nx stm) = return $ T.ESEQ stm (T.CONST 0)
 unEx (Cx genstm) = do
@@ -72,7 +72,7 @@ unEx (Cx genstm) = do
                         )
                         (T.TEMP r)
 
-unNx :: Exp -> State Temp.TempState T.Stm
+unNx :: Monad m => Exp -> StateT Temp.TempState m T.Stm
 unNx (Ex exp) = return $ T.EXP exp
 unNx (Nx stm) = return stm
 unNx (Cx genstm) = do
@@ -109,7 +109,7 @@ simpleVar (Access lev_dec acs, lev_use) = Ex sl
                 | otherwise = walkStaticLink (parent lo) (calcStaticLink lo e)
         sl = walkStaticLink lev_use (T.TEMP $ Frame.fp $ frame lev_use)
 
-lvalueVar :: Exp -> Exp -> State Temp.TempState Exp
+lvalueVar :: Monad m => Exp -> Exp -> StateT Temp.TempState m Exp
 lvalueVar var idx = do
         var' <- unEx var
         idx' <- unEx idx
@@ -121,12 +121,12 @@ nilExp = Ex $ T.CONST 0
 intExp :: Int -> Exp
 intExp i = Ex $ T.CONST i
 
-stringExp :: String -> State Temp.TempState (Exp, Frame.Frag f)
+stringExp :: Monad m => String -> StateT Temp.TempState m (Exp, Frame.Frag f)
 stringExp s = do
         lab <- Temp.newLabel
         return (Ex $ T.NAME lab, Frame.STRING lab s)
 
-callExp :: (Level, Level) -> Temp.Label -> [Exp] -> State Temp.TempState Exp
+callExp :: Monad m => (Level, Level) -> Temp.Label -> [Exp] -> StateT Temp.TempState m Exp
 callExp (lev_dec, lev_use) f es = do
         args <- mapM unEx es
         return $ Ex $ T.CALL (T.NAME f) (sl : args)
@@ -138,54 +138,54 @@ callExp (lev_dec, lev_use) f es = do
                 | otherwise = walkStaticLink (parent lo) (calcStaticLink lo e)
         sl = walkStaticLink lev_use (T.TEMP $ Frame.fp $ frame lev_use)
 
-binOp :: T.BinOp -> Exp -> Exp -> State Temp.TempState Exp
+binOp :: Monad m => T.BinOp -> Exp -> Exp -> StateT Temp.TempState m Exp
 binOp op left right = do
         left' <- unEx left
         right' <- unEx right
         return $ Ex $ T.BINOP op left' right'
 
-plusOp :: Exp -> Exp -> State Temp.TempState Exp
+plusOp :: Monad m => Exp -> Exp -> StateT Temp.TempState m Exp
 plusOp = binOp T.PLUS
 
-minusOp :: Exp -> Exp -> State Temp.TempState Exp
+minusOp :: Monad m => Exp -> Exp -> StateT Temp.TempState m Exp
 minusOp = binOp T.MINUS
 
-timesOp :: Exp -> Exp -> State Temp.TempState Exp
+timesOp :: Monad m => Exp -> Exp -> StateT Temp.TempState m Exp
 timesOp = binOp T.MUL
 
-divideOp :: Exp -> Exp -> State Temp.TempState Exp
+divideOp :: Monad m => Exp -> Exp -> StateT Temp.TempState m Exp
 divideOp = binOp T.DIV
 
-relOp :: T.Relop -> Exp -> Exp -> State Temp.TempState Exp
+relOp :: Monad m => T.Relop -> Exp -> Exp -> StateT Temp.TempState m Exp
 relOp op left right = do
         left' <- unEx left
         right' <- unEx right
         return $ Cx (uncurry (T.CJUMP op left' right'))
 
-ltOp :: Exp -> Exp -> State Temp.TempState Exp
+ltOp :: Monad m => Exp -> Exp -> StateT Temp.TempState m Exp
 ltOp = relOp T.LT
 
-gtOp :: Exp -> Exp -> State Temp.TempState Exp
+gtOp :: Monad m => Exp -> Exp -> StateT Temp.TempState m Exp
 gtOp = relOp T.GT
 
-leOp :: Exp -> Exp -> State Temp.TempState Exp
+leOp :: Monad m => Monad m => Exp -> Exp -> StateT Temp.TempState m Exp
 leOp = relOp T.LE
 
-geOp :: Exp -> Exp -> State Temp.TempState Exp
+geOp :: Monad m => Exp -> Exp -> StateT Temp.TempState m Exp
 geOp = relOp T.GE
 
-eqOp :: Exp -> Exp -> State Temp.TempState Exp
+eqOp :: Monad m => Exp -> Exp -> StateT Temp.TempState m Exp
 eqOp = relOp T.EQ
 
-neqOp :: Exp -> Exp -> State Temp.TempState Exp
+neqOp :: Monad m => Exp -> Exp -> StateT Temp.TempState m Exp
 neqOp = relOp T.NE
 
-recordExp :: [Exp] -> State Temp.TempState Exp
+recordExp :: Monad m => [Exp] -> StateT Temp.TempState m Exp
 recordExp cs = do
         args <- mapM unEx (Ex (T.CONST $ length cs) : cs)
         return $ Ex $ Frame.externalCall "initRecord" args
 
-seqExp :: [Exp] -> State Temp.TempState Exp
+seqExp :: Monad m => [Exp] -> StateT Temp.TempState m Exp
 seqExp [] = return $ Nx $ T.EXP $ T.CONST 0
 seqExp exps = do
         e <- unEx (last exps)
@@ -194,13 +194,13 @@ seqExp exps = do
                 [] -> Ex e
                 _ -> Ex $ T.ESEQ (mkseq ss) e
 
-assignExp :: Exp -> Exp -> State Temp.TempState Exp
+assignExp :: Monad m => Exp -> Exp -> StateT Temp.TempState m Exp
 assignExp left right = do
         left' <- unEx left
         right' <- unEx right
         return $ Nx $ T.MOVE left' right'
 
-ifExp :: Exp -> Exp -> Exp -> State Temp.TempState Exp
+ifExp :: Monad m => Exp -> Exp -> Exp -> StateT Temp.TempState m Exp
 ifExp test then' else' = do
         let genstm = unCx test
         then'' <- unEx then'
@@ -224,7 +224,7 @@ ifExp test then' else' = do
                                 )
                                 (T.TEMP r)
 
-whileExp :: Exp -> Exp -> State Temp.TempState Exp
+whileExp :: Monad m => Exp -> Exp -> StateT Temp.TempState m Exp
 whileExp test body = do
         let genstm = unCx test
         body' <- unNx body
@@ -237,13 +237,13 @@ whileExp test body = do
                                 , T.JUMP (T.NAME lab) [lab]
                                 ]
 
-letExp :: [Exp] -> Exp -> State Temp.TempState Exp
+letExp :: Monad m => [Exp] -> Exp -> StateT Temp.TempState m Exp
 letExp decs body = do
         ss <- mapM unNx decs
         e <- unEx body
         return $ Ex $ T.ESEQ (mkseq ss) e
 
-arrayExp :: Exp -> Exp -> State Temp.TempState Exp
+arrayExp :: Monad m => Exp -> Exp -> StateT Temp.TempState m Exp
 arrayExp size init = do
         args <- mapM unEx [size, init]
         return $ Ex $ Frame.externalCall "initArray" args

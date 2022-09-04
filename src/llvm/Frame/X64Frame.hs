@@ -23,16 +23,16 @@ instance Frame.FrameBase Frame where
         fp = fp
         rv = undefined
 
-newFrame :: Temp.Label -> [Bool] -> State Temp.TempState Frame
+newFrame :: Monad m => Temp.Label -> [Bool] -> StateT Temp.TempState m Frame
 newFrame lab escs = do
         fmls <- mapM calcformals (zip escs [0 ..])
         gets (Frame lab fmls [] . Temp.temps)
     where
-        calcformals :: (Bool, Int) -> State Temp.TempState Frame.Access
+        calcformals :: Monad m => (Bool, Int) -> StateT Temp.TempState m Frame.Access
         calcformals (True, n) = return (Frame.InFrame (- n))
         calcformals (False, _) = Frame.InReg <$> Temp.newTemp
 
-allocLocal :: Frame -> Bool -> State Temp.TempState Frame
+allocLocal :: Monad m => Frame -> Bool -> StateT Temp.TempState m Frame
 allocLocal frm True = do
         let locs = locals frm
             loc = Frame.InFrame (- length locs)
