@@ -172,8 +172,8 @@ rcd             :: { [(Name, Exp, Pos)] }
 
 {
 parseError :: [Token] -> IO a
-parseError [] = error "parse error at EOF"
-parseError (t : _) = error $ "parse error at " ++ show t
+parseError [] = fail "parse error at EOF"
+parseError (t : _) = fail $ "parse error at " ++ show t
 
 pos :: AlexPosn -> Pos
 pos (AlexPn _ l c) = Pos l c
