@@ -1,17 +1,12 @@
 {
 module Syntax.Parser where
 
-import Data.IORef
-
-import Syntax.Absyn
 import Syntax.Lexer
 import Syntax.Token
 }
 
 %name parse
 %tokentype { Token }
-%monad { IO } { (>>=) } { return }
-%error { parseError }
 
 %token
 
@@ -71,115 +66,104 @@ string                                  { TokString $$ }
 %%
 
 program         :: { Exp }
-                : exp                                                   { $1 }
+                : exp                                                   {}
 
 decs            :: { [Dec] }
-                : dec decs                                              { $1 : $2 }
-                | {- empty -}                                           { [] }
+                : dec decs                                              {}
+                | {- empty -}                                           {}
 
 dec             :: { Dec }
-                : tydecs                                                { TypeDec $1 }
-                | vardec                                                { $1 }
-                | fundecs                                               { FunctionDec $1 }
+                : tydecs                                                {}
+                | vardec                                                {}
+                | fundecs                                               {}
 
 tydecs          :: { [(Name, Ty, Pos)] }
-                : tydec tydecs                                          { $1 : $2 }
-                | tydec                                                 { [$1] }
+                : tydec tydecs                                          {}
+                | tydec                                                 {}
 
 tydec           :: { (Name, Ty, Pos) }
-                : 'type' tyid '=' ty                                    { (fst $2, $4, pos $1) }
+                : 'type' tyid '=' ty                                    {}
 
 ty              :: { Ty }
-                : tyid                                                  { NameTy (snd $1) (fst $1) }
-                | '{' tyfields '}'                                      { RecordTy $2 }
-                | 'array' 'of' tyid                                     { ArrayTy (pos $1) (fst $3) }
+                : tyid                                                  {}
+                | '{' tyfields '}'                                      {}
+                | 'array' 'of' tyid                                     {}
 
 tyfields        :: { [Field] }
-                : varid ':' tyid ',' tyfields                           {% do { esc <- escape; return (Field (snd $1) (fst $1) esc (fst $3) : $5) } }
-                | varid ':' tyid                                        {% do { esc <- escape; return [Field (snd $1) (fst $1) esc (fst $3)] } }
-                | {- empty -}                                           { [] }
+                : varid ':' tyid ',' tyfields                           {}
+                | varid ':' tyid                                        {}
+                | {- empty -}                                           {}
 
 vardec          :: { Dec }
-                : 'var' id ':=' exp                                     {% do { esc <- escape; return (VarDec (pos $1) (fst $2) esc Nothing $4) } }
-                | 'var' id ':' tyid ':=' exp                            {% do { esc <- escape; return (VarDec (pos $1) (fst $2) esc (Just $4) $6) } }
+                : 'var' id ':=' exp                                     {}
+                | 'var' id ':' tyid ':=' exp                            {}
 
 fundecs         :: { [FunDec] }
-                : fundec fundecs                                        { $1 : $2 }                                    
-                | fundec                                                { [$1] }
+                : fundec fundecs                                        {}                                    
+                | fundec                                                {}
 
 fundec          :: { FunDec }
-                : 'function' varid '(' tyfields ')' '=' exp             { FunDec (pos $1) (fst $2) $4 Nothing $7 }
-                | 'function' varid '(' tyfields ')' ':' tyid '=' exp    { FunDec (pos $1) (fst $2) $4 (Just (fst $7, snd $7)) $9 }
+                : 'function' varid '(' tyfields ')' '=' exp             {}
+                | 'function' varid '(' tyfields ')' ':' tyid '=' exp    {}
 
 lvalue          :: { Var }
-                : varid                                                 { SimpleVar (snd $1) (fst $1) }
-                | lvalue '.' varid                                      { FieldVar (pos $2) $1 (fst $3) }
-                | lvalue '[' exp ']'                                    { SubscriptVar (pos $2) $1 $3 }
+                : varid                                                 {}
+                | lvalue '.' varid                                      {}
+                | lvalue '[' exp ']'                                    {}
 
 exp             :: { Exp }
-                : lvalue                                                { VarExp $1 }
-                | 'nil'                                                 { NilExp }
-                | '(' seqexp ')'                                        { $2 }
-                | int                                                   { IntExp (fst $1) }
-                | string                                                { StringExp (pos (snd $1)) (fst $1) }
-                | '-' exp %prec UMINUS                                  { OpExp (pos $1) (IntExp 0) MinusOp $2 }
-                | varid '(' args ')'                                    { CallExp (snd $1) (fst $1) $3 }
-                | exp '+' exp                                           { OpExp (pos $2) $1 PlusOp $3 }
-                | exp '-' exp                                           { OpExp (pos $2) $1 MinusOp $3 }
-                | exp '*' exp                                           { OpExp (pos $2) $1 TimesOp $3 }
-                | exp '/' exp                                           { OpExp (pos $2) $1 DevideOp $3 }
-                | exp '=' exp                                           { OpExp (pos $2) $1 EqOp $3 }
-                | exp '<>' exp                                          { OpExp (pos $2) $1 NeqOp $3 }
-                | exp '<' exp                                           { OpExp (pos $2) $1 LtOp $3 }
-                | exp '<=' exp                                          { OpExp (pos $2) $1 LeOp $3 }
-                | exp '>' exp                                           { OpExp (pos $2) $1 GtOp $3 }
-                | exp '>=' exp                                          { OpExp (pos $2) $1 GeOp $3 }
-                | exp '&' exp                                           { IfExp (pos $2) $1 $3 (Just $ IntExp 0) } -- A & B ≡ (A -> B) | (¬A -> ⊥) ≡ if A then B else 0
-                | exp '|' exp                                           { IfExp (pos $2) $1 (IntExp 1) (Just $3) } -- A | B ≡ (A -> ⊤) | (¬A -> B) ≡ if A then 1 else B
-                | varid '{' rcd '}'                                     { RecordExp (snd $1) $3 (fst $1) }
-                | varid '[' exp ']' 'of' exp                            { ArrayExp (snd $1) (fst $1) $3 $6 }
-                | lvalue ':=' exp                                       { AssignExp (pos $2) $1 $3 }
-                | 'if' exp 'then' exp 'else' exp                        { IfExp (pos $1) $2 $4 (Just $6) }
-                | 'if' exp 'then' exp                                   { IfExp (pos $1) $2 $4 Nothing }
-                | 'while' exp 'do' exp                                  { WhileExp (pos $1) $2 $4 }
-                | 'for' id ':=' exp 'to' exp 'do' exp                   {% do { esc <- escape; return (ForExp (pos $1) (fst $2) esc $4 $6 $8) } }
-                | 'break'                                               { BreakExp (pos $1) }
-                | 'let' decs 'in' seqexp 'end'                          { LetExp (pos $1) $2 $4 }
+                : lvalue                                                {}
+                | 'nil'                                                 {}
+                | '(' seqexp ')'                                        {}
+                | int                                                   {}
+                | string                                                {}
+                | '-' exp %prec UMINUS                                  {}
+                | varid '(' args ')'                                    {}
+                | exp '+' exp                                           {}
+                | exp '-' exp                                           {}
+                | exp '*' exp                                           {}
+                | exp '/' exp                                           {}
+                | exp '=' exp                                           {}
+                | exp '<>' exp                                          {}
+                | exp '<' exp                                           {}
+                | exp '<=' exp                                          {}
+                | exp '>' exp                                           {}
+                | exp '>=' exp                                          {}
+                | exp '&' exp                                           {}
+                | exp '|' exp                                           {}
+                | varid '{' rcd '}'                                     {}
+                | varid '[' exp ']' 'of' exp                            {}
+                | lvalue ':=' exp                                       {}
+                | 'if' exp 'then' exp 'else' exp                        {}
+                | 'if' exp 'then' exp                                   {}
+                | 'while' exp 'do' exp                                  {}
+                | 'for' id ':=' exp 'to' exp 'do' exp                   {}
+                | 'break'                                               {}
+                | 'let' decs 'in' seqexp 'end'                          {}
 
 tyid          :: { (Name, Pos) }
-                : id                                                    { (fst $1, pos (snd $1)) }
+                : id                                                    {}
 
 varid           :: { (Name, Pos) }
-                : id                                                    { (fst $1, pos (snd $1)) }
+                : id                                                    {}
 
 seqexp          :: { Exp }
-                : exps                                                  { SeqExp $1 }
+                : exps                                                  {}
 
 exps            :: { [Exp] }
-                : exp ';' exps                                          { $1 : $3 }
-                | exp                                                   { [$1] }
-                | {- empty -}                                           { [] }
+                : exp ';' exps                                          {}
+                | exp                                                   {}
+                | {- empty -}                                           {}
 
 args            :: { [Exp] }
-                : exp ',' args                                          { $1 : $3 }
-                | exp                                                   { [$1] }
-                | {- empty -}                                           { [] }
+                : exp ',' args                                          {}
+                | exp                                                   {}
+                | {- empty -}                                           {}
 
 rcd             :: { [(Name, Exp, Pos)] }
-                : varid '=' exp ',' rcd                                 { (fst $1, $3, snd $1) : $5 }
-                | varid '=' exp                                         { [(fst $1, $3, snd $1)] }
-                | {- empty -}                                           { [] }
+                : varid '=' exp ',' rcd                                 {}
+                | varid '=' exp                                         {}
+                | {- empty -}                                           {}
 
 {
-parseError :: [Token] -> IO a
-parseError [] = fail "parse error at EOF"
-parseError (t : _) = fail $ "parse error at " ++ show t
-
-pos :: AlexPosn -> Pos
-pos (AlexPn _ l c) = Pos l c
-
-escape :: IO Escape
-escape = do
-        ref <- newIORef True
-        return $ Escape ref
 }
