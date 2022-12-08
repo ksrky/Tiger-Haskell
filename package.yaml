@@ -54,3 +54,6 @@ executables:
   chap3:
     main: Main.hs
     source-dirs: src/chap3
+  chap4:
+    main: Main.hs
+    source-dirs: src/chap4
