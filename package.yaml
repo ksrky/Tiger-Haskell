@@ -10,10 +10,6 @@ extra-source-files:
   - README.md
   - ChangeLog.md
 
-build-tools:
-  - alex
-  - happy
-
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
 # category:            Web
@@ -27,13 +23,34 @@ dependencies:
   - base >= 4.7 && < 5
   - array
   - containers
+  - haskeline
+  - hspec
+  - mtl
+  - prettyprinter
   - text
   - vector
-  - mtl
-  - hspec
-  - haskeline
+
+ghc-options:
+  - -Wall
+  - -Wcompat
+  - -Widentities
+  - -Wincomplete-record-updates
+  - -Wincomplete-uni-patterns
+  - -Wmissing-home-modules
+  - -Wpartial-fields
+  - -Wredundant-constraints
+  - -Wno-name-shadowing
+  - -threaded
+  - -rtsopts
+  - -with-rtsopts=-N
 
 library:
   source-dirs: src
 
 executables:
+  chap2:
+    main: Main.hs
+    source-dirs: src/chap2
+  chap3:
+    main: Main.hs
+    source-dirs: src/chap3

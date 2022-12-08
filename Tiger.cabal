@@ -28,9 +28,7 @@ library
       Paths_Tiger
   hs-source-dirs:
       src
-  build-tools:
-      alex
-    , happy
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       array
     , base >=4.7 && <5
@@ -38,142 +36,20 @@ library
     , haskeline
     , hspec
     , mtl
+    , prettyprinter
     , text
     , vector
   default-language: Haskell2010
 
-executable chapter10
-  main-is: Main.hs
-  other-modules:
-      Common.Symbol
-      Common.Temp
-      Compiler.Assem
-      Compiler.Codegen
-      Compiler.Flow
-      Compiler.Graph
-      Compiler.Liveness
-      Compiler.MakeGraph
-      Frame.Frame
-      Frame.X64Frame
-      IR.Canon
-      IR.Tree
-      Semant.Env
-      Semant.Error
-      Semant.FindEscape
-      Semant.Semant
-      Semant.Translate
-      Semant.Types
-      Syntax.Absyn
-      Syntax.Absyn.Show
-      Syntax.Absyn.Utils
-      Syntax.Lexer
-      Syntax.Parser
-      Syntax.Token
-      Paths_Tiger
-  hs-source-dirs:
-      src/chapter10
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-tools:
-      alex
-    , happy
-  build-depends:
-      array
-    , base >=4.7 && <5
-    , containers
-    , haskeline
-    , hspec
-    , mtl
-    , text
-    , vector
-  default-language: Haskell2010
-
-executable chapter11
-  main-is: Main.hs
-  other-modules:
-      Common.Symbol
-      Common.Temp
-      Compiler.Assem
-      Compiler.Codegen
-      Compiler.Flow
-      Compiler.Graph
-      Compiler.Liveness
-      Compiler.MakeGraph
-      Frame.Frame
-      Frame.X64Frame
-      IR.Canon
-      IR.Tree
-      Semant.Env
-      Semant.Error
-      Semant.FindEscape
-      Semant.Semant
-      Semant.Translate
-      Semant.Types
-      Syntax.Absyn
-      Syntax.Absyn.Show
-      Syntax.Absyn.Utils
-      Syntax.Lexer
-      Syntax.Parser
-      Syntax.Token
-      Paths_Tiger
-  hs-source-dirs:
-      src/chapter11
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-tools:
-      alex
-    , happy
-  build-depends:
-      array
-    , base >=4.7 && <5
-    , containers
-    , haskeline
-    , hspec
-    , mtl
-    , text
-    , vector
-  default-language: Haskell2010
-
-executable chapter12
-  main-is: Main.hs
-  other-modules:
-      Common.Pos
-      Common.Symbol
-      Semant.Env
-      Semant.Semant
-      Semant.Types
-      Syntax.Absyn
-      Syntax.Lexer
-      Syntax.Parser
-      Syntax.Token
-      Paths_Tiger
-  hs-source-dirs:
-      src/chapter12
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-tools:
-      alex
-    , happy
-  build-depends:
-      array
-    , base >=4.7 && <5
-    , containers
-    , haskeline
-    , hspec
-    , mtl
-    , text
-    , vector
-  default-language: Haskell2010
-
-executable chapter2
+executable chap2
   main-is: Main.hs
   other-modules:
       Syntax.Lexer
       Syntax.Token
       Paths_Tiger
   hs-source-dirs:
-      src/chapter2
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-tools:
-      alex
-    , happy
+      src/chap2
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       array
     , base >=4.7 && <5
@@ -181,35 +57,12 @@ executable chapter2
     , haskeline
     , hspec
     , mtl
+    , prettyprinter
     , text
     , vector
   default-language: Haskell2010
 
-executable chapter3
-  main-is: Main.hs
-  other-modules:
-      Syntax.Lexer
-      Syntax.Parser
-      Syntax.Token
-      Paths_Tiger
-  hs-source-dirs:
-      src/chapter3
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-tools:
-      alex
-    , happy
-  build-depends:
-      array
-    , base >=4.7 && <5
-    , containers
-    , haskeline
-    , hspec
-    , mtl
-    , text
-    , vector
-  default-language: Haskell2010
-
-executable chapter4
+executable chap3
   main-is: Main.hs
   other-modules:
       Syntax.Absyn
@@ -218,11 +71,8 @@ executable chapter4
       Syntax.Token
       Paths_Tiger
   hs-source-dirs:
-      src/chapter4
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-tools:
-      alex
-    , happy
+      src/chap3
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       array
     , base >=4.7 && <5
@@ -230,269 +80,7 @@ executable chapter4
     , haskeline
     , hspec
     , mtl
-    , text
-    , vector
-  default-language: Haskell2010
-
-executable chapter5a
-  main-is: Main.hs
-  other-modules:
-      Semant.Env
-      Semant.Error
-      Semant.Semant
-      Semant.Symbol
-      Semant.Types
-      Syntax.Absyn
-      Syntax.Absyn.Utils
-      Syntax.Lexer
-      Syntax.Parser
-      Syntax.Token
-      Paths_Tiger
-  hs-source-dirs:
-      src/chapter5a
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-tools:
-      alex
-    , happy
-  build-depends:
-      array
-    , base >=4.7 && <5
-    , containers
-    , haskeline
-    , hspec
-    , mtl
-    , text
-    , vector
-  default-language: Haskell2010
-
-executable chapter5b
-  main-is: Main.hs
-  other-modules:
-      Error.Error
-      Semant.Env
-      Semant.Semant
-      Semant.Symbol
-      Semant.Types
-      Syntax.Absyn
-      Syntax.Absyn.Utils
-      Syntax.Lexer
-      Syntax.Parser
-      Syntax.Token
-      Paths_Tiger
-  hs-source-dirs:
-      src/chapter5b
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-tools:
-      alex
-    , happy
-  build-depends:
-      array
-    , base >=4.7 && <5
-    , containers
-    , haskeline
-    , hspec
-    , mtl
-    , text
-    , vector
-  default-language: Haskell2010
-
-executable chapter6
-  main-is: Main.hs
-  other-modules:
-      Error.Error
-      Frame.Frame
-      Frame.X64Frame
-      Semant.Env
-      Semant.FindEscape
-      Semant.Semant
-      Semant.Symbol
-      Semant.Translate
-      Semant.Types
-      Syntax.Absyn
-      Syntax.Absyn.Utils
-      Syntax.Lexer
-      Syntax.Parser
-      Syntax.Token
-      Temp.Temp
-      Paths_Tiger
-  hs-source-dirs:
-      src/chapter6
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-tools:
-      alex
-    , happy
-  build-depends:
-      array
-    , base >=4.7 && <5
-    , containers
-    , haskeline
-    , hspec
-    , mtl
-    , text
-    , vector
-  default-language: Haskell2010
-
-executable chapter7
-  main-is: Main.hs
-  other-modules:
-      Common.Symbol
-      Common.Temp
-      Frame.Frame
-      Frame.X64Frame
-      IR.Tree
-      Semant.Env
-      Semant.Error
-      Semant.FindEscape
-      Semant.Semant
-      Semant.Translate
-      Semant.Types
-      Syntax.Absyn
-      Syntax.Absyn.Show
-      Syntax.Absyn.Utils
-      Syntax.Lexer
-      Syntax.Parser
-      Syntax.Token
-      Paths_Tiger
-  hs-source-dirs:
-      src/chapter7
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-tools:
-      alex
-    , happy
-  build-depends:
-      array
-    , base >=4.7 && <5
-    , containers
-    , haskeline
-    , hspec
-    , mtl
-    , text
-    , vector
-  default-language: Haskell2010
-
-executable chapter8
-  main-is: Main.hs
-  other-modules:
-      Common.Symbol
-      Common.Temp
-      Frame.Frame
-      Frame.X64Frame
-      IR.Canon
-      IR.Tree
-      Semant.Env
-      Semant.Error
-      Semant.FindEscape
-      Semant.Semant
-      Semant.Translate
-      Semant.Types
-      Syntax.Absyn
-      Syntax.Absyn.Show
-      Syntax.Absyn.Utils
-      Syntax.Lexer
-      Syntax.Parser
-      Syntax.Token
-      Paths_Tiger
-  hs-source-dirs:
-      src/chapter8
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-tools:
-      alex
-    , happy
-  build-depends:
-      array
-    , base >=4.7 && <5
-    , containers
-    , haskeline
-    , hspec
-    , mtl
-    , text
-    , vector
-  default-language: Haskell2010
-
-executable chapter9
-  main-is: Main.hs
-  other-modules:
-      Common.Symbol
-      Common.Temp
-      Compiler.Assem
-      Compiler.Codegen
-      Frame.Frame
-      Frame.X64Frame
-      IR.Canon
-      IR.Tree
-      Semant.Env
-      Semant.Error
-      Semant.FindEscape
-      Semant.Semant
-      Semant.Translate
-      Semant.Types
-      Syntax.Absyn
-      Syntax.Absyn.Show
-      Syntax.Absyn.Utils
-      Syntax.Lexer
-      Syntax.Parser
-      Syntax.Token
-      Paths_Tiger
-  hs-source-dirs:
-      src/chapter9
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-tools:
-      alex
-    , happy
-  build-depends:
-      array
-    , base >=4.7 && <5
-    , containers
-    , haskeline
-    , hspec
-    , mtl
-    , text
-    , vector
-  default-language: Haskell2010
-
-executable llvm
-  main-is: Main.hs
-  other-modules:
-      Common.Symbol
-      Common.Temp
-      Compiler.Assem
-      Compiler.Codegen
-      Compiler.Flow
-      Compiler.Graph
-      Compiler.Liveness
-      Compiler.MakeGraph
-      Frame.Frame
-      Frame.X64Frame
-      IR.Canon
-      IR.Tree
-      LLVM.Pretty
-      LLVM.Tree
-      Semant.Env
-      Semant.Error
-      Semant.FindEscape
-      Semant.Semant
-      Semant.Translate
-      Semant.Types
-      Syntax.Absyn
-      Syntax.Absyn.Show
-      Syntax.Absyn.Utils
-      Syntax.Lexer
-      Syntax.Parser
-      Syntax.Token
-      Paths_Tiger
-  hs-source-dirs:
-      src/llvm
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-tools:
-      alex
-    , happy
-  build-depends:
-      array
-    , base >=4.7 && <5
-    , containers
-    , haskeline
-    , hspec
-    , mtl
+    , prettyprinter
     , text
     , vector
   default-language: Haskell2010
