@@ -7,6 +7,8 @@ import Syntax.Token
 
 %name parse
 %tokentype { Token }
+%monad { IO } { (>>=) } { return }
+%error { parseError }
 
 %token
 
@@ -65,53 +67,53 @@ string                                  { TokString $$ }
 
 %%
 
-program         :: { Exp }
+program         :: {} 
                 : exp                                                   {}
 
-decs            :: { [Dec] }
+decs            :: {}
                 : dec decs                                              {}
                 | {- empty -}                                           {}
 
-dec             :: { Dec }
+dec             :: {}
                 : tydecs                                                {}
                 | vardec                                                {}
                 | fundecs                                               {}
 
-tydecs          :: { [(Name, Ty, Pos)] }
+tydecs          :: {}
                 : tydec tydecs                                          {}
                 | tydec                                                 {}
 
-tydec           :: { (Name, Ty, Pos) }
+tydec           :: {}
                 : 'type' tyid '=' ty                                    {}
 
-ty              :: { Ty }
+ty              :: {}
                 : tyid                                                  {}
                 | '{' tyfields '}'                                      {}
                 | 'array' 'of' tyid                                     {}
 
-tyfields        :: { [Field] }
+tyfields        :: {}
                 : varid ':' tyid ',' tyfields                           {}
                 | varid ':' tyid                                        {}
                 | {- empty -}                                           {}
 
-vardec          :: { Dec }
+vardec          :: {}
                 : 'var' id ':=' exp                                     {}
                 | 'var' id ':' tyid ':=' exp                            {}
 
-fundecs         :: { [FunDec] }
+fundecs         :: {}
                 : fundec fundecs                                        {}                                    
                 | fundec                                                {}
 
-fundec          :: { FunDec }
+fundec          :: {}
                 : 'function' varid '(' tyfields ')' '=' exp             {}
                 | 'function' varid '(' tyfields ')' ':' tyid '=' exp    {}
 
-lvalue          :: { Var }
+lvalue          :: {}
                 : varid                                                 {}
                 | lvalue '.' varid                                      {}
                 | lvalue '[' exp ']'                                    {}
 
-exp             :: { Exp }
+exp             :: {}
                 : lvalue                                                {}
                 | 'nil'                                                 {}
                 | '(' seqexp ')'                                        {}
@@ -141,29 +143,32 @@ exp             :: { Exp }
                 | 'break'                                               {}
                 | 'let' decs 'in' seqexp 'end'                          {}
 
-tyid          :: { (Name, Pos) }
+tyid            :: {}
                 : id                                                    {}
 
-varid           :: { (Name, Pos) }
+varid           :: {}
                 : id                                                    {}
 
-seqexp          :: { Exp }
+seqexp          :: {}
                 : exps                                                  {}
 
-exps            :: { [Exp] }
+exps            :: {}
                 : exp ';' exps                                          {}
                 | exp                                                   {}
                 | {- empty -}                                           {}
 
-args            :: { [Exp] }
+args            :: {}
                 : exp ',' args                                          {}
                 | exp                                                   {}
                 | {- empty -}                                           {}
 
-rcd             :: { [(Name, Exp, Pos)] }
+rcd             :: {}
                 : varid '=' exp ',' rcd                                 {}
                 | varid '=' exp                                         {}
                 | {- empty -}                                           {}
 
 {
+parseError :: [Token] -> IO a
+parseError [] = fail "parse error at EOF"
+parseError (t : _) = fail $ "parse error at " ++ show t
 }

@@ -31,9 +31,9 @@ repl = runInputT defaultSettings loop
 processFile :: Int -> IO ()
 processFile num = do
         let src = "testcases/test" ++ show num ++ ".tig"
-        contents <- readFile src
+        inp <- readFile src
         putStrLn $ "----------" ++ src ++ "----------"
-        process contents
+        process inp
         putStrLn ""
 
 process :: String -> IO ()

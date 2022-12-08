@@ -1,10 +1,10 @@
 module Main where
 
+import Semant.Semant
 import Syntax.Lexer
 import Syntax.Parser
 
 import Control.Monad.Trans
-
 import System.Console.Haskeline
 import System.Environment
 
@@ -31,12 +31,12 @@ repl = runInputT defaultSettings loop
 processFile :: Int -> IO ()
 processFile num = do
         let src = "testcases/test" ++ show num ++ ".tig"
-        contents <- readFile src
+        inp <- readFile src
         putStrLn $ "----------" ++ src ++ "----------"
-        process contents
+        process inp
         putStrLn ""
 
 process :: String -> IO ()
 process input = do
         exp <- parse $ alexScanTokens input
-        print exp
+        transProg exp

@@ -127,7 +127,7 @@ exp             :: { Exp }
                 | exp '+' exp                                           { OpExp (pos $2) $1 PlusOp $3 }
                 | exp '-' exp                                           { OpExp (pos $2) $1 MinusOp $3 }
                 | exp '*' exp                                           { OpExp (pos $2) $1 TimesOp $3 }
-                | exp '/' exp                                           { OpExp (pos $2) $1 DevideOp $3 }
+                | exp '/' exp                                           { OpExp (pos $2) $1 DivideOp $3 }
                 | exp '=' exp                                           { OpExp (pos $2) $1 EqOp $3 }
                 | exp '<>' exp                                          { OpExp (pos $2) $1 NeqOp $3 }
                 | exp '<' exp                                           { OpExp (pos $2) $1 LtOp $3 }

@@ -65,7 +65,6 @@ executable chap2
 executable chap3
   main-is: Main.hs
   other-modules:
-      Syntax.Absyn
       Syntax.Lexer
       Syntax.Parser
       Syntax.Token
@@ -95,6 +94,33 @@ executable chap4
       Paths_Tiger
   hs-source-dirs:
       src/chap4
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      array
+    , base >=4.7 && <5
+    , containers
+    , haskeline
+    , hspec
+    , mtl
+    , prettyprinter
+    , text
+    , vector
+  default-language: Haskell2010
+
+executable chap5a
+  main-is: Main.hs
+  other-modules:
+      Semant.Env
+      Semant.Semant
+      Semant.Symbol
+      Semant.Types
+      Syntax.Absyn
+      Syntax.Lexer
+      Syntax.Parser
+      Syntax.Token
+      Paths_Tiger
+  hs-source-dirs:
+      src/chap5a
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       array
