@@ -230,7 +230,7 @@ transDecs (dec : decs) = do
         transTypeDec [] = asks s_tenv
         transTypeDec ((typ, ty_abs, _) : tydecs) = do
                 tenv <- asks s_tenv
-                ty_sem <- transTy typ ty_abs
+                ty_sem <- transTy ty_abs
                 local (\env -> env{s_tenv = enter typ ty_sem tenv}) $ transTypeDec tydecs
         transFunDec :: (MonadFail m, MonadIO m) => [FunDec] -> Semant m Env
         transFunDec [] = ask
@@ -246,14 +246,14 @@ transDecs (dec : decs) = do
                                 Just res_ty -> return res_ty
                         Nothing -> return UNIT
                 let venv' = foldl (\venv (n, ty, _) -> enter n (VarEntry ty) venv) venv params'
-                body_ty <- local (\env -> env{s_venv = venv'}) $ expty_ty <$> transExp body
+                body_ty <- local (const env{s_venv = venv'}) $ expty_ty <$> transExp body
                 check res_ty body_ty pos
                 let venv'' = enter name (FunEntry (map (\(_, ty, _) -> ty) params') res_ty) venv
-                local (const env{s_venv = venv'', s_tenv = tenv}) $ transFunDec fundecs
+                local (const env{s_venv = venv''}) $ transFunDec fundecs
 
 -- | Translating Ty
-transTy :: (MonadFail m, MonadIO m) => Name -> A.Ty -> Semant m T.Ty
-transTy _ ty = do
+transTy :: (MonadFail m, MonadIO m) => A.Ty -> Semant m T.Ty
+transTy ty = do
         tenv <- asks s_tenv
         case ty of
                 NameTy pos typ -> case look typ tenv of

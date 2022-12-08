@@ -60,3 +60,6 @@ executables:
   chap5a:
     main: Main.hs
     source-dirs: src/chap5a
+  chap5b:
+    main: Main.hs
+    source-dirs: src/chap5b

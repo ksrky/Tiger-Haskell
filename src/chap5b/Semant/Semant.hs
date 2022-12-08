@@ -33,7 +33,7 @@ failSemant (Pos l c) doc =
                         ++ renderString (layoutPretty defaultLayoutOptions doc)
 
 -- | Utilities
-check :: MonadFail m => T.Ty -> T.Ty -> Pos -> Semant m ()
+check :: (MonadFail m, MonadIO m) => T.Ty -> T.Ty -> Pos -> Semant m ()
 check lty rty pos = do
         tenv <- asks s_tenv
         lty' <- actualTy pos tenv lty
@@ -42,16 +42,22 @@ check lty rty pos = do
                 then return ()
                 else failSemant pos $ hsep ["type mismatch: expected", squotes (pretty lty) <> comma, "but got", squotes (pretty rty)]
 
-actualTy :: MonadFail m => Pos -> TEnv -> T.Ty -> m T.Ty
-actualTy pos tenv = actualTy'
+actualTy :: (MonadFail m, MonadIO m) => Pos -> TEnv -> T.Ty -> m T.Ty
+actualTy pos tenv = walk1
     where
-        actualTy' :: MonadFail m => T.Ty -> m T.Ty
-        actualTy' ty = case ty of
+        walk1 :: (MonadFail m, MonadIO m) => T.Ty -> m T.Ty
+        walk1 ty = case ty of
                 NAME typ _ -> case look typ tenv of
-                        Just ty' -> actualTy' ty'
-                        Nothing -> failSemant pos $ hsep ["type not found:", squotes (pretty typ)]
-                ARRAY ty' u -> ARRAY <$> actualTy' ty' <*> pure u
-                RECORD fields u -> RECORD <$> mapM (\(lab, ty) -> (lab,) <$> actualTy' ty) fields <*> pure u
+                        Just ty' -> walk1 ty'
+                        Nothing -> failSemant pos $ hsep ["type not found:", pretty typ]
+                ARRAY ty' u -> ARRAY <$> walk2 ty' <*> pure u
+                RECORD fields u -> RECORD <$> mapM (\(lab, ty) -> (lab,) <$> walk2 ty) fields <*> pure u
+                _ -> return ty
+        walk2 :: MonadFail m => T.Ty -> m T.Ty
+        walk2 ty = case ty of
+                NAME{} -> return ty
+                ARRAY ty' u -> ARRAY <$> walk2 ty' <*> pure u
+                RECORD fields u -> RECORD <$> mapM (\(lab, ty) -> (lab,) <$> walk2 ty) fields <*> pure u
                 _ -> return ty
 
 uniqueNameCheck :: MonadFail m => [(Name, Pos)] -> m ()
@@ -208,11 +214,15 @@ transDecs (dec : decs) = do
         env' <- case dec of
                 TypeDec tydecs -> do
                         uniqueNameCheck [(typ, pos) | (typ, _, pos) <- tydecs]
-                        tenv <- transTypeDec tydecs
-                        return env{s_tenv = tenv}
+                        tenv <- asks s_tenv
+                        ref <- liftIO $ newIORef Nothing
+                        let tenv' = foldl (\tenv typ -> enter typ (NAME typ ref) tenv) tenv [typ | (typ, _, _) <- tydecs]
+                        local (const env{s_tenv = tenv'}) $ transTypeDec tydecs
                 FunctionDec fundecs -> do
                         uniqueNameCheck [(name, pos) | FunDec pos name _ _ _ <- fundecs]
-                        transFunDec fundecs
+                        venv <- enterHeaders fundecs
+                        local (const env{s_venv = venv}) $ transFunDec fundecs
+                        return env{s_venv = venv}
                 VarDec _ name _ Nothing init -> do
                         init_ty <- expty_ty <$> transExp init
                         return env{s_venv = enter name (VarEntry init_ty) (s_venv env)}
@@ -226,15 +236,19 @@ transDecs (dec : decs) = do
                         return env{s_venv = enter name (VarEntry res_ty) (s_venv env)}
         local (const env') $ transDecs decs
     where
-        transTypeDec :: (MonadFail m, MonadIO m) => [(Name, A.Ty, Pos)] -> Semant m TEnv
-        transTypeDec [] = asks s_tenv
-        transTypeDec ((typ, ty_abs, _) : tydecs) = do
+        transTypeDec :: (MonadFail m, MonadIO m) => [(Name, A.Ty, Pos)] -> Semant m Env
+        transTypeDec [] = ask
+        transTypeDec ((typ, ty_abs, pos) : tydecs) = do
                 tenv <- asks s_tenv
-                ty_sem <- transTy typ ty_abs
-                local (\env -> env{s_tenv = enter typ ty_sem tenv}) $ transTypeDec tydecs
-        transFunDec :: (MonadFail m, MonadIO m) => [FunDec] -> Semant m Env
-        transFunDec [] = ask
-        transFunDec ((FunDec pos name params res body) : fundecs) = do
+                ty_sem <- transTy ty_abs
+                case look typ tenv of
+                        Just (NAME _ ref) -> liftIO $ writeIORef ref (Just ty_sem)
+                        _ -> failSemant pos "bug: unreachable"
+                let tenv' = enter typ ty_sem tenv
+                local (\env -> env{s_tenv = tenv'}) $ transTypeDec tydecs
+        enterHeaders :: (MonadFail m, MonadIO m) => [FunDec] -> Semant m VEnv
+        enterHeaders [] = asks s_venv
+        enterHeaders ((FunDec _ name params res _) : fundecs) = do
                 env@(Env venv tenv _) <- ask
                 uniqueNameCheck [(lab, pos) | Field pos lab _ _ <- params]
                 params' <- forM params $ \(Field pos lab esc typ) -> case look typ tenv of
@@ -245,26 +259,37 @@ transDecs (dec : decs) = do
                                 Nothing -> failSemant pos $ hsep ["type not found:", pretty typ]
                                 Just res_ty -> return res_ty
                         Nothing -> return UNIT
+                let venv' = enter name (FunEntry (map (\(_, ty, _) -> ty) params') res_ty) venv
+                local (const env{s_venv = venv'}) $ enterHeaders fundecs
+        transFunDec :: (MonadFail m, MonadIO m) => [FunDec] -> Semant m ()
+        transFunDec [] = return ()
+        transFunDec ((FunDec pos _ params res body) : fundecs) = do
+                env@(Env venv tenv _) <- ask
+                params' <- forM params $ \(Field pos lab esc typ) -> case look typ tenv of
+                        Just ty -> return (lab, ty, esc)
+                        Nothing -> failSemant pos $ hsep ["type not found:", pretty typ]
+                res_ty <- case res of
+                        Just (typ, pos) -> case look typ tenv of
+                                Nothing -> failSemant pos $ hsep ["type not found:", pretty typ]
+                                Just res_ty -> return res_ty
+                        Nothing -> return UNIT
                 let venv' = foldl (\venv (n, ty, _) -> enter n (VarEntry ty) venv) venv params'
-                body_ty <- local (\env -> env{s_venv = venv'}) $ expty_ty <$> transExp body
+                body_ty <- local (const env{s_venv = venv'}) $ expty_ty <$> transExp body
                 check res_ty body_ty pos
-                let venv'' = enter name (FunEntry (map (\(_, ty, _) -> ty) params') res_ty) venv
-                local (const env{s_venv = venv'', s_tenv = tenv}) $ transFunDec fundecs
+                transFunDec fundecs
 
 -- | Translating Ty
-transTy :: (MonadFail m, MonadIO m) => Name -> A.Ty -> Semant m T.Ty
-transTy _ ty = do
+transTy :: (MonadFail m, MonadIO m) => A.Ty -> Semant m T.Ty
+transTy ty = do
         tenv <- asks s_tenv
         case ty of
                 NameTy pos typ -> case look typ tenv of
                         Just ty -> return ty
                         Nothing -> failSemant pos $ hsep ["type not found:", pretty typ]
                 RecordTy fields -> do
-                        let transfield :: MonadFail m => Field -> m (Symbol, T.Ty)
-                            transfield (Field pos lab _ typ) = case look typ tenv of
+                        fields_ty <- forM fields $ \(Field pos lab _ typ) -> case look typ tenv of
                                 Just ty -> return (lab, ty)
                                 Nothing -> failSemant pos $ hsep ["type not found:", pretty typ]
-                        fields_ty <- mapM transfield fields
                         RECORD fields_ty <$> newUnique
                 ArrayTy pos typ -> case look typ tenv of
                         Just ty -> ARRAY ty <$> newUnique

@@ -133,3 +133,30 @@ executable chap5a
     , text
     , vector
   default-language: Haskell2010
+
+executable chap5b
+  main-is: Main.hs
+  other-modules:
+      Semant.Env
+      Semant.Semant
+      Semant.Symbol
+      Semant.Types
+      Syntax.Absyn
+      Syntax.Lexer
+      Syntax.Parser
+      Syntax.Token
+      Paths_Tiger
+  hs-source-dirs:
+      src/chap5b
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -Wno-name-shadowing -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      array
+    , base >=4.7 && <5
+    , containers
+    , haskeline
+    , hspec
+    , mtl
+    , prettyprinter
+    , text
+    , vector
+  default-language: Haskell2010
