@@ -1,6 +1,6 @@
 module Main where
 
-import Semant.Semant
+import Semant
 import Syntax.Lexer
 import Syntax.Parser
 

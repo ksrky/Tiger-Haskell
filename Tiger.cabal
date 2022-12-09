@@ -164,15 +164,17 @@ executable chap5b
 executable chap6
   main-is: Main.hs
   other-modules:
-      Frame.Frame
+      Frame
+      Semant
       Semant.Env
-      Semant.Semant
-      Semant.Symbol
+      Semant.FindEscape
       Semant.Types
+      Symbol
       Syntax.Absyn
       Syntax.Lexer
       Syntax.Parser
       Syntax.Token
+      Temp
       Paths_Tiger
   hs-source-dirs:
       src/chap6

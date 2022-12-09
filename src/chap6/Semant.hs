@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
-module Semant.Semant where
+module Semant where
 
 import Control.Monad.Reader
 import Data.IORef
@@ -10,8 +10,8 @@ import Prettyprinter
 import Prettyprinter.Render.String
 
 import Semant.Env
-import Semant.Symbol
 import Semant.Types as T
+import Symbol
 import Syntax.Absyn as A
 
 -- | Environment

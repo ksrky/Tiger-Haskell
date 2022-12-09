@@ -1,4 +1,4 @@
-module Semant.Symbol where
+module Symbol where
 
 import qualified Data.Map.Strict as M
 

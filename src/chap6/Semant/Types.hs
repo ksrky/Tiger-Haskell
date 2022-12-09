@@ -5,7 +5,7 @@ module Semant.Types where
 import Data.IORef
 import Prettyprinter
 
-import Semant.Symbol (Symbol)
+import Symbol (Symbol)
 
 type Unique = Int
 

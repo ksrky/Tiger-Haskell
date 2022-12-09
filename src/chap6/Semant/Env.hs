@@ -1,6 +1,6 @@
 module Semant.Env where
 
-import Semant.Symbol
+import  Symbol
 import Semant.Types
 
 data EnvEntry
