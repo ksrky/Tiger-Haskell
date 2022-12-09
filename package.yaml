@@ -63,3 +63,6 @@ executables:
   chap5b:
     main: Main.hs
     source-dirs: src/chap5b
+  chap6:
+    main: Main.hs
+    source-dirs: src/chap6
