@@ -22,7 +22,12 @@ type TEnv = Table T.Ty
 data ExpTy = ExpTy {expty_exp :: (), expty_ty :: T.Ty}
 
 -- | Monad
-data Env = Env {s_venv :: VEnv, s_tenv :: TEnv, s_unique :: IORef Unique}
+data Env = Env
+        { s_venv :: VEnv
+        , s_tenv :: TEnv
+        , s_unique :: IORef Unique
+        , s_inLoop :: Bool
+        }
 
 type Semant m = ReaderT Env m
 
@@ -178,7 +183,7 @@ transExp (IfExp pos test then' else') = do
 transExp (WhileExp pos test body) = do
         test_ty <- expty_ty <$> transExp test
         check INT test_ty pos
-        body_ty <- expty_ty <$> transExp body
+        body_ty <- local (\env -> env{s_inLoop = True}) $ expty_ty <$> transExp body
         check UNIT body_ty pos
         return $ ExpTy () UNIT
 transExp (ForExp pos _ _ lo hi body) = do
@@ -186,8 +191,11 @@ transExp (ForExp pos _ _ lo hi body) = do
         check INT lo_ty pos
         hi_ty <- expty_ty <$> transExp hi
         check INT hi_ty pos
-        transExp body
-transExp (BreakExp _) = return $ ExpTy () UNIT
+        local (\env -> env{s_inLoop = True}) $ transExp body
+transExp (BreakExp pos) = do
+        inloop <- asks s_inLoop
+        unless inloop $ failSemant pos "break is not inside for or while"
+        return $ ExpTy () UNIT
 transExp (LetExp _ decs body) = do
         env <- transDecs decs
         local (const env) $ transExp body
@@ -214,6 +222,7 @@ transDecs (dec : decs) = do
         env' <- case dec of
                 TypeDec tydecs -> do
                         uniqueNameCheck [(typ, pos) | (typ, _, pos) <- tydecs]
+                        detectCycle tydecs
                         tenv <- asks s_tenv
                         ref <- liftIO $ newIORef Nothing
                         let tenv' = foldl (\tenv typ -> enter typ (NAME typ ref) tenv) tenv [typ | (typ, _, _) <- tydecs]
@@ -236,6 +245,16 @@ transDecs (dec : decs) = do
                         return env{s_venv = enter name (VarEntry res_ty) (s_venv env)}
         local (const env') $ transDecs decs
     where
+        detectCycle :: MonadFail m => [(Name, A.Ty, Pos)] -> Semant m ()
+        detectCycle tydecs = lift $ mapM_ (loop []) [typ | (typ, _, _) <- tydecs]
+            where
+                xs = [(typ, (typ', pos)) | (typ, NameTy pos typ', _) <- tydecs]
+                loop :: MonadFail m => [Name] -> Name -> m ()
+                loop deps x = case lookup x xs of
+                        Just (y, pos)
+                                | y `elem` deps -> failSemant pos $ hsep ["cyclic dependencies:", pretty y]
+                                | otherwise -> loop (x : deps) y
+                        Nothing -> return ()
         transTypeDec :: (MonadFail m, MonadIO m) => [(Name, A.Ty, Pos)] -> Semant m Env
         transTypeDec [] = ask
         transTypeDec ((typ, ty_abs, pos) : tydecs) = do
@@ -249,7 +268,7 @@ transDecs (dec : decs) = do
         enterHeaders :: (MonadFail m, MonadIO m) => [FunDec] -> Semant m VEnv
         enterHeaders [] = asks s_venv
         enterHeaders ((FunDec _ name params res _) : fundecs) = do
-                env@(Env venv tenv _) <- ask
+                env@(Env venv tenv _ _) <- ask
                 uniqueNameCheck [(lab, pos) | Field pos lab _ _ <- params]
                 params' <- forM params $ \(Field pos lab esc typ) -> case look typ tenv of
                         Just ty -> return (lab, ty, esc)
@@ -264,7 +283,7 @@ transDecs (dec : decs) = do
         transFunDec :: (MonadFail m, MonadIO m) => [FunDec] -> Semant m ()
         transFunDec [] = return ()
         transFunDec ((FunDec pos _ params res body) : fundecs) = do
-                env@(Env venv tenv _) <- ask
+                env@(Env venv tenv _ _) <- ask
                 params' <- forM params $ \(Field pos lab esc typ) -> case look typ tenv of
                         Just ty -> return (lab, ty, esc)
                         Nothing -> failSemant pos $ hsep ["type not found:", pretty typ]
@@ -297,5 +316,5 @@ transTy ty = do
 
 transProg :: (MonadFail m, MonadIO m) => Exp -> m ()
 transProg exp = do
-        ref <- liftIO $ newIORef 0
-        void $ runReaderT (transExp exp) (Env baseVEnv baseTEnv ref)
+        ref_uniq <- liftIO $ newIORef 0
+        void $ runReaderT (transExp exp) (Env baseVEnv baseTEnv ref_uniq False)
