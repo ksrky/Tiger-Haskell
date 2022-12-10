@@ -7,7 +7,7 @@ import Prettyprinter
 
 data Pos = Pos {line :: Int, col :: Int} deriving (Eq, Show)
 
-newtype Escape = Escape (IORef Bool) deriving (Eq)
+newtype Escape = Escape {getEscape :: IORef Bool} deriving (Eq)
 
 instance Show Escape where show _ = ""
 
@@ -62,9 +62,22 @@ data Oper
         | GeOp
         deriving (Eq, Show)
 
-data Field = Field Pos Name Escape Name deriving (Eq, Show)
+data Field = Field
+        { fieldPos :: Pos
+        , fieldName :: Name
+        , fieldEscape :: Escape
+        , fieldType :: Name
+        }
+        deriving (Eq, Show)
 
-data FunDec = FunDec Pos Name [Field] (Maybe (Name, Pos)) Exp deriving (Eq, Show)
+data FunDec = FunDec
+        { funPos :: Pos
+        , funName :: Name
+        , funParams :: [Field]
+        , funResult :: Maybe (Name, Pos)
+        , funBody :: Exp
+        }
+        deriving (Eq, Show)
 
 ----------------------------------------------------------------
 -- Pretty printing

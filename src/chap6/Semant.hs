@@ -13,6 +13,8 @@ import Semant.Env
 import Semant.Types as T
 import Symbol
 import Syntax.Absyn as A
+import Temp
+import Translate
 
 -- | Environment
 type VEnv = Table EnvEntry
@@ -27,6 +29,8 @@ data Env = Env
         , s_tenv :: TEnv
         , s_unique :: IORef Unique
         , s_inLoop :: Bool
+        , s_level :: Level
+        , s_temp :: TempState
         }
 
 type Semant m = ReaderT Env m
@@ -84,7 +88,7 @@ transVar (SimpleVar pos x) = do
         venv <- asks s_venv
         case look x venv of
                 Nothing -> failSemant pos $ hsep ["undefined variable:", pretty x]
-                Just (VarEntry ty) -> return $ ExpTy () ty
+                Just (VarEntry _ ty) -> return $ ExpTy () ty
                 Just FunEntry{} -> failSemant pos $ hsep ["undefined variable:", pretty x]
 transVar (FieldVar pos var x) = do
         ty <- expty_ty <$> transVar var
@@ -113,7 +117,7 @@ transExp (CallExp pos fun args) = do
         case look fun venv of
                 Nothing -> failSemant pos $ hsep ["undefined variable:", pretty fun]
                 Just VarEntry{} -> failSemant pos $ hsep ["undefined variable:", pretty fun]
-                Just (FunEntry fmls res) -> do
+                Just (FunEntry _ _ fmls res) -> do
                         checkformals args fmls
                         return $ ExpTy () res
     where
@@ -232,17 +236,19 @@ transDecs (dec : decs) = do
                         venv <- enterHeaders fundecs
                         local (const env{s_venv = venv}) $ transFunDec fundecs
                         return env{s_venv = venv}
-                VarDec _ name _ Nothing init -> do
+                VarDec _ name esc Nothing init -> do
                         init_ty <- expty_ty <$> transExp init
-                        return env{s_venv = enter name (VarEntry init_ty) (s_venv env)}
-                VarDec pos name _ (Just (typ, pos')) init -> do
+                        acs <- allocLocal (s_temp env) (s_level env) =<< liftIO (readIORef $ getEscape esc)
+                        return env{s_venv = enter name (VarEntry acs init_ty) (s_venv env)}
+                VarDec pos name esc (Just (typ, pos')) init -> do
                         init_ty <- expty_ty <$> transExp init
                         tenv <- asks s_tenv
                         res_ty <- case look typ tenv of
                                 Nothing -> failSemant pos' $ hsep ["type not found:", pretty typ]
                                 Just res_ty -> return res_ty
                         check res_ty init_ty pos
-                        return env{s_venv = enter name (VarEntry res_ty) (s_venv env)}
+                        acs <- allocLocal (s_temp env) (s_level env) =<< liftIO (readIORef $ getEscape esc)
+                        return env{s_venv = enter name (VarEntry acs res_ty) (s_venv env)}
         local (const env') $ transDecs decs
     where
         detectCycle :: MonadFail m => [(Name, A.Ty, Pos)] -> Semant m ()
@@ -268,7 +274,7 @@ transDecs (dec : decs) = do
         enterHeaders :: (MonadFail m, MonadIO m) => [FunDec] -> Semant m VEnv
         enterHeaders [] = asks s_venv
         enterHeaders ((FunDec _ name params res _) : fundecs) = do
-                env@(Env venv tenv _ _) <- ask
+                env@(Env venv tenv _ _ lev st) <- ask
                 uniqueNameCheck [(lab, pos) | Field pos lab _ _ <- params]
                 params' <- forM params $ \(Field pos lab esc typ) -> case look typ tenv of
                         Just ty -> return (lab, ty, esc)
@@ -278,21 +284,25 @@ transDecs (dec : decs) = do
                                 Nothing -> failSemant pos $ hsep ["type not found:", pretty typ]
                                 Just res_ty -> return res_ty
                         Nothing -> return UNIT
-                let venv' = enter name (FunEntry (map (\(_, ty, _) -> ty) params') res_ty) venv
+                escs <- liftIO $ mapM (readIORef . getEscape . fieldEscape) params
+                lev' <- newLevel st lev escs
+                let venv' = enter name (FunEntry lev' (lev_name lev') (map (\(_, ty, _) -> ty) params') res_ty) venv -- ?: lev_name lev'
                 local (const env{s_venv = venv'}) $ enterHeaders fundecs
         transFunDec :: (MonadFail m, MonadIO m) => [FunDec] -> Semant m ()
         transFunDec [] = return ()
         transFunDec ((FunDec pos _ params res body) : fundecs) = do
-                env@(Env venv tenv _ _) <- ask
-                params' <- forM params $ \(Field pos lab esc typ) -> case look typ tenv of
-                        Just ty -> return (lab, ty, esc)
+                env@(Env venv tenv _ _ lev st) <- ask
+                entries <- forM params $ \(Field pos lab esc typ) -> case look typ tenv of
+                        Just ty -> do
+                                acs <- allocLocal st lev =<< liftIO (readIORef $ getEscape esc)
+                                return (lab, VarEntry acs ty)
                         Nothing -> failSemant pos $ hsep ["type not found:", pretty typ]
                 res_ty <- case res of
                         Just (typ, pos) -> case look typ tenv of
                                 Nothing -> failSemant pos $ hsep ["type not found:", pretty typ]
                                 Just res_ty -> return res_ty
                         Nothing -> return UNIT
-                let venv' = foldl (\venv (n, ty, _) -> enter n (VarEntry ty) venv) venv params'
+                let venv' = foldl (\venv (n, e) -> enter n e venv) venv entries
                 body_ty <- local (const env{s_venv = venv'}) $ expty_ty <$> transExp body
                 check res_ty body_ty pos
                 transFunDec fundecs
@@ -317,4 +327,5 @@ transTy ty = do
 transProg :: (MonadFail m, MonadIO m) => Exp -> m ()
 transProg exp = do
         ref_uniq <- liftIO $ newIORef 0
-        void $ runReaderT (transExp exp) (Env baseVEnv baseTEnv ref_uniq False)
+        st <- initState
+        void $ runReaderT (transExp exp) (Env baseVEnv baseTEnv ref_uniq False Outermost st)

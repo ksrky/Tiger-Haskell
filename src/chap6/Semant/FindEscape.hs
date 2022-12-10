@@ -74,6 +74,7 @@ traverseDecs (dec : decs) = do
                 FunctionDec fundecs -> traverseFunDec fundecs
                 VarDec _ name (Escape ref) _ init -> do
                         traverseExp init
+                        liftIO $ writeIORef ref False
                         return $ enter name (dep, ref) env
         local (const (EscEnv dep env')) $ traverseDecs decs
     where

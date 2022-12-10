@@ -165,6 +165,7 @@ executable chap6
   main-is: Main.hs
   other-modules:
       Frame
+      Frame.X64Frame
       Semant
       Semant.Env
       Semant.FindEscape
@@ -175,6 +176,7 @@ executable chap6
       Syntax.Parser
       Syntax.Token
       Temp
+      Translate
       Paths_Tiger
   hs-source-dirs:
       src/chap6
